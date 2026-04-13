@@ -1,0 +1,139 @@
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+--// SETTINGS
+local DEFAULT_SPEED = 16.5
+local Enabled = false
+
+--// GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TGHIEUX_UI"
+ScreenGui.Parent = game.CoreGui
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 220, 0, 40)
+Frame.Position = UDim2.new(0.5, -110, 0, 120)
+Frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 12)
+
+local Button = Instance.new("TextButton")
+Button.Size = UDim2.new(1, 0, 1, 0)
+Button.BackgroundTransparency = 1
+Button.Text = "SCRIPT BY TGHIEU — VN"
+Button.TextColor3 = Color3.new(1,1,1)
+Button.Font = Enum.Font.GothamBold
+Button.TextScaled = false
+Button.TextSize = 15
+Button.Active = true -- 🔥 QUAN TRỌNG
+Button.Parent = Frame
+
+--// DRAG (FIX CHUẨN)
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+Button.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 
+	or input.UserInputType == Enum.UserInputType.Touch then
+		
+		dragging = true
+		dragStart = input.Position
+		startPos = Frame.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+Button.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement 
+	or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		
+		Frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+--// TOGGLE
+Button.MouseButton1Click:Connect(function()
+	Enabled = not Enabled
+	Button.Text = Enabled and "SCRIPT — ON" or "SCRIPT — OFF"
+end)
+
+--// TÀNG HÌNH 100%
+local function hideGUI()
+	Frame.BackgroundTransparency = 1
+	Button.TextTransparency = 1
+end
+
+local function showGUI()
+	Frame.BackgroundTransparency = 0
+	Button.TextTransparency = 0
+end
+
+--// CHAT COMMAND
+player.Chatted:Connect(function(msg)
+	msg = msg:lower()
+	
+	if msg == ".an" then
+		hideGUI()
+	elseif msg == ".hien" then
+		showGUI()
+	end
+end)
+
+--// MAIN LOOP
+task.spawn(function()
+	while task.wait(0.01) do
+		if Enabled then
+			local char = player.Character
+			if char then
+				local humanoid = char:FindFirstChild("Humanoid")
+				local tool = char:FindFirstChildOfClass("Tool")
+
+				-- AUTO ATTACK
+				if tool then
+					pcall(function()
+						for i = 1,7 do
+							tool:Activate()
+						end
+					end)
+				end
+
+				-- AUTO GRAB
+				pcall(function()
+					ReplicatedStorage:FindFirstChild("JALADADEPELOEVENT"):FireServer()
+				end)
+
+				-- KEEP SPEED
+				if humanoid then
+					humanoid.WalkSpeed = DEFAULT_SPEED
+				end
+			end
+		end
+	end
+end) 
