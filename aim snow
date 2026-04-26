@@ -269,7 +269,7 @@ Toggle.MouseButton1Click:Connect(function()
 		safeEquip(tool)
 		-- Bắn 1 phát
 		fireAtTarget()
-		task.wait(0.01) -- Delay nhỏ giữa 2 phát
+		task.wait(0.05) -- Delay nhỏ giữa 2 phát
 	end
 	
 	-- Trả lại tool cũ (nếu có)
