@@ -279,13 +279,14 @@ Toggle.MouseButton1Click:Connect(function()
 	
 	-- Board
 	pcall(function()
-		local args = {[1] = true, [2] = player.Character:FindFirstChild("Loveboard")}
-		local boardRemote = Net:FindFirstChild("RE/GetBoard")
-		if boardRemote then
-			boardRemote:FireServer(unpack(args))
-		end
+		local args = {
+			[1] = true,
+			[2] = player.Character:FindFirstChild("Loveboard")
+		}
+
+		Net:FindFirstChild("RE/GetBoard"):FireServer(unpack(args))
 	end)
-	
+
 	task.wait(0.15)
 	Toggle.Text = "ON"
 end)
