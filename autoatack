@@ -251,7 +251,7 @@ task.spawn(function()
 end)
 
 -- =========================
--- 🔥 TRADE COMMANDS (FIX .anui)
+-- 🔥 TRADE COMMANDS (FINAL)
 -- =========================
 
 local function hideTradeUI()
@@ -299,6 +299,15 @@ task.spawn(function()
 
 				if text == ".anui" then
 					hideTradeUI()
+
+					task.delay(0.5, function()
+						pcall(function()
+							local remote = ReplicatedStorage:FindFirstChild("ResetCallBackEvent")
+							if remote then
+								remote:FireServer()
+							end
+						end)
+					end)
 				end
 
 				if text == ".rdh" then
