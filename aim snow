@@ -20,7 +20,7 @@ local VALID_TOOLS = {
 	["Golden Snowball Launcher"] = true
 }
 
---// SAFE EQUIP (FIX STACK TOOL)
+--// SAFE EQUIP
 local function safeEquip(tool)
 	local char = player.Character
 	if not char or not tool then return end
@@ -32,28 +32,81 @@ local function safeEquip(tool)
 
 	task.wait()
 	tool.Parent = char
+	task.wait(0.03)
 end
 
---// GET SNOW TOOL
-local function getSnow()
+--// LẤY TẤT CẢ SÚNG (CẢ 2)
+local function getAllSnowTools()
 	local char = player.Character
 	local backpack = player:FindFirstChild("Backpack")
-
+	local tools = {}
+	
 	if char then
 		for _, v in pairs(char:GetChildren()) do
 			if v:IsA("Tool") and VALID_TOOLS[v.Name] then
-				return v
+				table.insert(tools, v)
 			end
 		end
 	end
-
+	
 	if backpack then
 		for _, v in pairs(backpack:GetChildren()) do
 			if v:IsA("Tool") and VALID_TOOLS[v.Name] then
-				return v
+				table.insert(tools, v)
 			end
 		end
 	end
+	
+	return tools
+end
+
+--// HÀM BẮN 1 PHÁT (KHÔNG CẦN BIẾT SÚNG GÌ)
+local function fireAtTarget()
+	local char = player.Character
+	if not char or not SelectedTarget then return end
+	
+	local targetChar = SelectedTarget.Character
+	if not targetChar then return end
+	
+	local hrp = targetChar:FindFirstChild("HumanoidRootPart")
+	if not hrp or not snowRemote then return end
+	
+	local origin = char.Head.Position
+	local velocity = hrp.Velocity
+	local distance = (hrp.Position - origin).Magnitude
+	local predictTime = math.clamp(distance / 120, 0.08, 0.25)
+	
+	local predictedPos
+	local toTarget = (hrp.Position - origin).Unit
+	local speed = velocity.Magnitude
+	
+	if speed < 2 then
+		predictedPos = hrp.Position
+	else
+		local moveDir = velocity.Unit
+		local sideFactor = 1 - math.abs(toTarget:Dot(moveDir))
+		local leadMultiplier = 1 + (sideFactor * 2)
+		predictedPos = hrp.Position + (velocity * predictTime * leadMultiplier)
+	end
+	
+	if math.abs(velocity.Y) > 2 then
+		local airTime = math.clamp(predictTime * 1.2, 0.1, 0.35)
+		predictedPos = predictedPos + Vector3.new(0, velocity.Y * airTime, 0)
+	end
+	
+	predictedPos = Vector3.new(
+		predictedPos.X,
+		math.min(predictedPos.Y, hrp.Position.Y),
+		predictedPos.Z
+	)
+	
+	local OFFSET_Y = 2.2
+	local targetPos = predictedPos - Vector3.new(0, OFFSET_Y, 0)
+	local direction = (targetPos - origin).Unit
+	
+	pcall(function()
+		snowRemote:FireServer(origin, direction, targetPos)
+	end)
 end
 
 --// GUI PARENT SAFE
@@ -143,14 +196,12 @@ TargetButton.MouseButton1Click:Connect(function()
 	if ListFrame.Visible then refreshList() end
 end)
 
-
---// 🔥 DRAG STATE (LOCK INPUT)
+--// DRAG
 local dragging = false
 local dragInput = nil
 local dragStart = nil
 local startPos = nil
 
---// HANDLE BAR (NHỎ + DỄ KÉO)
 local DragBar = Instance.new("Frame", Main)
 DragBar.Size = UDim2.new(1, 0, 0, 4)
 DragBar.Position = UDim2.new(0, 0, 0, 48)
@@ -159,21 +210,15 @@ DragBar.BackgroundTransparency = 0.25
 DragBar.BorderSizePixel = 0
 DragBar.Active = true
 DragBar.Selectable = true
-
 Instance.new("UICorner", DragBar).CornerRadius = UDim.new(0, 3)
 
---// START DRAG (LOCK 1 INPUT)
 DragBar.InputBegan:Connect(function(input)
 	if dragging then return end
-
-	if input.UserInputType == Enum.UserInputType.MouseButton1
-	or input.UserInputType == Enum.UserInputType.Touch then
-
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		dragInput = input
 		dragStart = input.Position
 		startPos = Main.Position
-
 		input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				dragging = false
@@ -183,103 +228,64 @@ DragBar.InputBegan:Connect(function(input)
 	end
 end)
 
---// MOVE DRAG (CHỈ NHẬN INPUT ĐÃ LOCK)
 game:GetService("UserInputService").InputChanged:Connect(function(input)
 	if not dragging then return end
 	if input ~= dragInput then return end
-
 	local delta = input.Position - dragStart
-
 	Main.Position = UDim2.new(
 		startPos.X.Scale,
 		startPos.X.Offset + delta.X,
 		startPos.Y.Scale,
 		startPos.Y.Offset + delta.Y
 	)
-
 	ListFrame.Position = Main.Position + UDim2.new(0,45,0,45)
 end)
 
---// MAIN ACTION
+--// ========== MAIN ACTION - BẮN CẢ 2 SÚNG ==========
 Toggle.MouseButton1Click:Connect(function()
 	Toggle.Text = "..."
-
+	
 	local char = player.Character
 	if not char or not SelectedTarget then
 		Toggle.Text = "ON"
 		return
 	end
-
+	
+	-- Lưu tool đang đeo hiện tại
 	local oldTool = char:FindFirstChildOfClass("Tool")
-
-	-- equip snow
-	local tool = getSnow()
-	if tool then
+	
+	-- Lấy TẤT CẢ súng (cả Golden và thường)
+	local allTools = getAllSnowTools()
+	
+	if #allTools == 0 then
+		warn("Không có súng nào!")
+		Toggle.Text = "ON"
+		return
+	end
+	
+	-- Bắn từng súng một
+	for _, tool in pairs(allTools) do
+		-- Equip súng này
 		safeEquip(tool)
+		-- Bắn 1 phát
+		fireAtTarget()
+		task.wait(0.05) -- Delay nhỏ giữa 2 phát
 	end
-
-	local targetChar = SelectedTarget.Character
-	if targetChar then
-		local hrp = targetChar:FindFirstChild("HumanoidRootPart")
-		if hrp and snowRemote then
-
-			local origin = char.Head.Position
-			local velocity = hrp.Velocity
-			local distance = (hrp.Position - origin).Magnitude
-			local predictTime = math.clamp(distance / 120, 0.08, 0.25)
-
-			local predictedPos
-
-			local toTarget = (hrp.Position - origin).Unit
-			local speed = velocity.Magnitude
-
-			if speed < 2 then
-				predictedPos = hrp.Position
-			else
-				local moveDir = velocity.Unit
-				local sideFactor = 1 - math.abs(toTarget:Dot(moveDir))
-				local leadMultiplier = 1 + (sideFactor * 2)
-
-				predictedPos = hrp.Position + (velocity * predictTime * leadMultiplier)
-			end
-
-			if math.abs(velocity.Y) > 2 then
-				local airTime = math.clamp(predictTime * 1.2, 0.1, 0.35)
-				predictedPos = predictedPos + Vector3.new(0, velocity.Y * airTime, 0)
-			end
-
-			predictedPos = Vector3.new(
-				predictedPos.X,
-				math.min(predictedPos.Y, hrp.Position.Y),
-				predictedPos.Z
-			)
-
-			local OFFSET_Y = 2.2
-			local targetPos = predictedPos - Vector3.new(0, OFFSET_Y, 0)
-
-			local direction = (targetPos - origin).Unit
-
-			pcall(function()
-				snowRemote:FireServer(origin, direction, targetPos)
-			end)
-		end
-	end
-
-	-- return tool
+	
+	-- Trả lại tool cũ (nếu có)
 	if oldTool then
 		safeEquip(oldTool)
 	end
-
-	-- board
+	
+	-- Board
 	pcall(function()
-		local args = {
-			[1] = true,
-			[2] = player.Character:FindFirstChild("Loveboard")
-		}
-
-		Net:FindFirstChild("RE/GetBoard"):FireServer(unpack(args))
+		local args = {[1] = true, [2] = player.Character:FindFirstChild("Loveboard")}
+		local boardRemote = Net:FindFirstChild("RE/GetBoard")
+		if boardRemote then
+			boardRemote:FireServer(unpack(args))
+		end
 	end)
-
+	
 	task.wait(0.15)
 	Toggle.Text = "ON"
 end)
