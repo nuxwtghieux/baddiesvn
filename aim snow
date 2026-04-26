@@ -1,5 +1,3 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/hii"))()
-
 --// SERVICES
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,47 +10,51 @@ local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local snowRemote = Net:FindFirstChild("RE/snowballLauncherFire")
 
 --// STATE
-local SelectedTarget = nil
+local SelectedTarget=nil
 
---// VALID TOOLS
-local VALID_TOOLS = {
-	["Snowball Launcher"] = true,
-	["Golden Snowball Launcher"] = true
+--// TOOLS
+local VALID_TOOLS={
+	["Snowball Launcher"]=true,
+	["Golden Snowball Launcher"]=true
 }
 
 --------------------------------------------------
 -- SAFE EQUIP
 --------------------------------------------------
 local function safeEquip(tool)
-	local char = player.Character
+	local char=player.Character
 	if not char or not tool then return end
 
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum:UnequipTools()
-	end
+	local hum=char:FindFirstChildOfClass("Humanoid")
+	if hum then hum:UnequipTools() end
 
 	task.wait()
-	tool.Parent = char
+	tool.Parent=char
 end
 
 --------------------------------------------------
--- GET ALL SNOW GUNS
+-- GET BOTH GUNS
 --------------------------------------------------
 local function getAllSnow()
-	local tools = {}
+	local tools={}
+	local char=player.Character
+	local backpack=player:FindFirstChild("Backpack")
 
-	local function scan(container)
-		if not container then return end
-		for _,v in pairs(container:GetChildren()) do
+	if char then
+		for _,v in pairs(char:GetChildren()) do
 			if v:IsA("Tool") and VALID_TOOLS[v.Name] then
 				table.insert(tools,v)
 			end
 		end
 	end
 
-	scan(player.Character)
-	scan(player:FindFirstChild("Backpack"))
+	if backpack then
+		for _,v in pairs(backpack:GetChildren()) do
+			if v:IsA("Tool") and VALID_TOOLS[v.Name] then
+				table.insert(tools,v)
+			end
+		end
+	end
 
 	return tools
 end
@@ -60,54 +62,55 @@ end
 --------------------------------------------------
 -- GUI
 --------------------------------------------------
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "SnowHub"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local ScreenGui=Instance.new("ScreenGui")
+ScreenGui.Name="SnowHub"
+ScreenGui.ResetOnSpawn=false
+ScreenGui.Parent=player:WaitForChild("PlayerGui")
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0,220,0,40)
-Main.Position = UDim2.new(0.5,-110,0,120)
-Main.BackgroundTransparency = 1
+local Main=Instance.new("Frame",ScreenGui)
+Main.Size=UDim2.new(0,220,0,40)
+Main.Position=UDim2.new(0.5,-110,0,120)
+Main.BackgroundTransparency=0.01
+Main.Active=true
 
-local Toggle = Instance.new("TextButton", Main)
-Toggle.Size = UDim2.new(0,40,0,40)
-Toggle.BackgroundColor3 = Color3.fromRGB(0,0,0)
-Toggle.Text = "ON"
-Toggle.TextColor3 = Color3.new(1,1,1)
-Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 12
-Instance.new("UICorner",Toggle)
+local Toggle=Instance.new("TextButton",Main)
+Toggle.Size=UDim2.new(0,40,0,40)
+Toggle.BackgroundColor3=Color3.fromRGB(0,0,0)
+Toggle.Text="ON"
+Toggle.TextColor3=Color3.new(1,1,1)
+Toggle.Font=Enum.Font.GothamBold
+Toggle.TextSize=12
+Instance.new("UICorner",Toggle).CornerRadius=UDim.new(0,8)
 
-local TargetButton = Instance.new("TextButton", Main)
-TargetButton.Size = UDim2.new(0,170,0,40)
-TargetButton.Position = UDim2.new(0,45,0,0)
-TargetButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
-TargetButton.BackgroundTransparency = 0.2
-TargetButton.Text = "SELECT TARGET"
-TargetButton.TextColor3 = Color3.new(1,1,1)
-TargetButton.Font = Enum.Font.GothamBold
-TargetButton.TextSize = 12
-Instance.new("UICorner",TargetButton)
+local TargetButton=Instance.new("TextButton",Main)
+TargetButton.Size=UDim2.new(0,170,0,40)
+TargetButton.Position=UDim2.new(0,45,0,0)
+TargetButton.BackgroundColor3=Color3.fromRGB(0,0,0)
+TargetButton.BackgroundTransparency=0.2
+TargetButton.Text="SELECT TARGET"
+TargetButton.TextColor3=Color3.new(1,1,1)
+TargetButton.Font=Enum.Font.GothamBold
+TargetButton.TextSize=12
+Instance.new("UICorner",TargetButton).CornerRadius=UDim.new(0,8)
 
 --------------------------------------------------
 -- TARGET LIST
 --------------------------------------------------
-local ListFrame = Instance.new("Frame",ScreenGui)
-ListFrame.Size = UDim2.new(0,200,0,160)
-ListFrame.Position = Main.Position + UDim2.new(0,45,0,45)
-ListFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-ListFrame.BackgroundTransparency = 0.3
-ListFrame.Visible = false
+local ListFrame=Instance.new("Frame",ScreenGui)
+ListFrame.Size=UDim2.new(0,200,0,160)
+ListFrame.Position=Main.Position+UDim2.new(0,45,0,45)
+ListFrame.BackgroundColor3=Color3.fromRGB(0,0,0)
+ListFrame.BackgroundTransparency=0.3
+ListFrame.Visible=false
 Instance.new("UICorner",ListFrame)
 
-local Scroll = Instance.new("ScrollingFrame",ListFrame)
-Scroll.Size = UDim2.new(1,0,1,0)
-Scroll.BackgroundTransparency = 1
-Scroll.ScrollBarThickness = 4
+local Scroll=Instance.new("ScrollingFrame",ListFrame)
+Scroll.Size=UDim2.new(1,0,1,0)
+Scroll.BackgroundTransparency=1
+Scroll.ScrollBarThickness=4
 
-local UIList = Instance.new("UIListLayout",Scroll)
-UIList.Padding = UDim.new(0,5)
+local UIList=Instance.new("UIListLayout",Scroll)
+UIList.Padding=UDim.new(0,5)
 
 local function refreshList()
 	for _,v in pairs(Scroll:GetChildren()) do
@@ -115,76 +118,123 @@ local function refreshList()
 	end
 
 	for _,plr in pairs(Players:GetPlayers()) do
-		if plr ~= player then
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1,-10,0,30)
-			btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
-			btn.TextColor3 = Color3.new(1,1,1)
-			btn.Font = Enum.Font.Gotham
-			btn.TextSize = 12
-			btn.Text = plr.DisplayName
-			btn.Parent = Scroll
-
+		if plr~=player then
+			local btn=Instance.new("TextButton")
+			btn.Size=UDim2.new(1,-10,0,30)
+			btn.BackgroundColor3=Color3.fromRGB(20,20,20)
+			btn.TextColor3=Color3.new(1,1,1)
+			btn.Font=Enum.Font.Gotham
+			btn.TextSize=12
+			btn.Text=plr.DisplayName
+			btn.Parent=Scroll
 			Instance.new("UICorner",btn)
 
 			btn.MouseButton1Click:Connect(function()
-				SelectedTarget = plr
-				TargetButton.Text = plr.DisplayName
-				ListFrame.Visible = false
+				SelectedTarget=plr
+				TargetButton.Text=plr.DisplayName
+				ListFrame.Visible=false
 			end)
 		end
 	end
 
 	task.wait()
-	Scroll.CanvasSize = UDim2.new(0,0,0,UIList.AbsoluteContentSize.Y)
+	Scroll.CanvasSize=UDim2.new(0,0,0,UIList.AbsoluteContentSize.Y)
 end
 
 TargetButton.MouseButton1Click:Connect(function()
-	ListFrame.Visible = not ListFrame.Visible
+	ListFrame.Visible=not ListFrame.Visible
 	if ListFrame.Visible then refreshList() end
 end)
 
 --------------------------------------------------
--- DRAG UI
+-- DRAG BAR
 --------------------------------------------------
 local dragging=false
-local dragInput,dragStart,startPos
+local dragStart
+local startPos
 
-Main.InputBegan:Connect(function(input)
+local DragBar=Instance.new("Frame",Main)
+DragBar.Size=UDim2.new(1,0,0,6)
+DragBar.Position=UDim2.new(0,0,1,2)
+DragBar.BackgroundColor3=Color3.fromRGB(255,255,255)
+DragBar.BackgroundTransparency=0.3
+DragBar.Active=true
+Instance.new("UICorner",DragBar)
+
+DragBar.InputBegan:Connect(function(input)
 	if input.UserInputType==Enum.UserInputType.MouseButton1 then
 		dragging=true
-		dragInput=input
 		dragStart=input.Position
 		startPos=Main.Position
-
-		input.Changed:Connect(function()
-			if input.UserInputState==Enum.UserInputState.End then
-				dragging=false
-			end
-		end)
 	end
 end)
 
 UIS.InputChanged:Connect(function(input)
-	if dragging and input==dragInput then
-		local delta=input.Position-dragStart
+	if not dragging then return end
+	if input.UserInputType~=Enum.UserInputType.MouseMovement then return end
 
-		Main.Position=UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset+delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset+delta.Y
-		)
+	local delta=input.Position-dragStart
 
-		ListFrame.Position = Main.Position + UDim2.new(0,45,0,45)
+	Main.Position=UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset+delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset+delta.Y
+	)
+
+	ListFrame.Position=Main.Position+UDim2.new(0,45,0,45)
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseButton1 then
+		dragging=false
 	end
 end)
 
 --------------------------------------------------
--- 🔥 MAIN SHOOT (FINAL)
+-- AIM + DOUBLE FIRE
+--------------------------------------------------
+local function fireAtTarget(tool,char,targetChar)
+	local hrp=targetChar:FindFirstChild("HumanoidRootPart")
+	if not hrp or not snowRemote then return end
+
+	safeEquip(tool)
+	task.wait(0.22)
+
+	local origin=char.Head.Position
+	local velocity=hrp.Velocity
+	local distance=(hrp.Position-origin).Magnitude
+	local predictTime=math.clamp(distance/120,0.08,0.25)
+
+	local predictedPos
+	local toTarget=(hrp.Position-origin).Unit
+	local speed=velocity.Magnitude
+
+	if speed<2 then
+		predictedPos=hrp.Position
+	else
+		local moveDir=velocity.Unit
+		local sideFactor=1-math.abs(toTarget:Dot(moveDir))
+		local leadMultiplier=1+(sideFactor*2)
+		predictedPos=hrp.Position+(velocity*predictTime*leadMultiplier)
+	end
+
+	if math.abs(velocity.Y)>2 then
+		predictedPos+=Vector3.new(0,velocity.Y*0.2,0)
+	end
+
+	local targetPos=predictedPos-Vector3.new(0,2.2,0)
+	local direction=(targetPos-origin).Unit
+
+	pcall(function()
+		snowRemote:FireServer(origin,direction,targetPos)
+	end)
+end
+
+--------------------------------------------------
+-- MAIN BUTTON
 --------------------------------------------------
 Toggle.MouseButton1Click:Connect(function()
-
 	Toggle.Text="..."
 
 	local char=player.Character
@@ -193,38 +243,15 @@ Toggle.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- SAVE OLD TOOL
 	local oldTool=char:FindFirstChildOfClass("Tool")
-
 	local targetChar=SelectedTarget.Character
-	local hrp=targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-	if not hrp then
-		Toggle.Text="ON"
-		return
-	end
+	if not targetChar then return end
 
 	local tools=getAllSnow()
 
 	for _,tool in ipairs(tools) do
-
-		safeEquip(tool)
-		task.wait(0.06)
-
-		local origin=char.Head.Position
-		local velocity=hrp.Velocity
-		local distance=(hrp.Position-origin).Magnitude
-		local predictTime=math.clamp(distance/120,0.08,0.25)
-
-		local predictedPos=hrp.Position+(velocity*predictTime)
-
-		local targetPos=predictedPos-Vector3.new(0,2.2,0)
-		local direction=(targetPos-origin).Unit
-
-		pcall(function()
-			snowRemote:FireServer(origin,direction,targetPos)
-		end)
-
-		task.wait(0.08)
+		fireAtTarget(tool,char,targetChar)
+		task.wait(0.30)
 	end
 
 	-- RETURN OLD TOOL
@@ -232,13 +259,12 @@ Toggle.MouseButton1Click:Connect(function()
 		safeEquip(oldTool)
 	end
 
-	-- BOARD REMOTE
+	-- BOARD (GIỮ NGUYÊN)
 	pcall(function()
 		local args={
 			[1]=true,
 			[2]=player.Character:FindFirstChild("Loveboard")
 		}
-
 		Net:FindFirstChild("RE/GetBoard"):FireServer(unpack(args))
 	end)
 
