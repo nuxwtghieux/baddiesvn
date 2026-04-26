@@ -277,7 +277,7 @@ Toggle.MouseButton1Click:Connect(function()
 		safeEquip(oldTool)
 	end
 	
-	-- Board
+	task.wait(0.04)
 	pcall(function()
 		local args = {
 			[1] = true,
