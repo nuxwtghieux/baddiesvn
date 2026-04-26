@@ -1,3 +1,4 @@
+--// SERVICES
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
@@ -250,7 +251,7 @@ task.spawn(function()
 end)
 
 -- =========================
--- 🔥 TRADE COMMANDS (ADDED)
+-- 🔥 TRADE COMMANDS (FIX .anui)
 -- =========================
 
 local function hideTradeUI()
@@ -258,17 +259,17 @@ local function hideTradeUI()
 	if not gui then return end
 
 	for _, v in pairs(gui:GetDescendants()) do
-		if v:IsA("ScreenGui") or v:IsA("Frame") then
-			local name = string.lower(v.Name)
-			if string.find(name, "trade") then
-				pcall(function()
-					if v:IsA("ScreenGui") then
-						v.Enabled = false
-					else
-						v.Visible = false
-					end
-				end)
-			end
+		local name = string.lower(v.Name)
+
+		if string.find(name, "trade") or string.find(name, "trading") then
+			pcall(function()
+				if v:IsA("GuiObject") then
+					v.Visible = false
+				end
+				if v:IsA("ScreenGui") then
+					v.Enabled = false
+				end
+			end)
 		end
 	end
 end
