@@ -272,12 +272,41 @@ Toggle.MouseButton1Click:Connect(function()
 		game:GetService("RunService").Heartbeat:Wait()
 	end
 
-	pcall(function()
-		Net:FindFirstChild("RE/GetBoard"):FireServer(
-			true,
-			player.Character:FindFirstChild("Loveboard")
-		)
-	end)
+        pcall(function()
+			local board
+
+			for _, tool in pairs(player.Character:GetChildren()) do
+				if tool:IsA("Tool") then
+					local name = string.lower(tool.Name)
+
+					if string.find(name, "board") then
+						board = tool
+						break
+					end
+				end
+			end
+
+			if not board then
+				local backpack = player:FindFirstChild("Backpack")
+
+				if backpack then
+					for _, tool in pairs(backpack:GetChildren()) do
+						if tool:IsA("Tool") then
+							local name = string.lower(tool.Name)
+
+							if string.find(name, "board") then
+								board = tool
+								break
+							end
+						end
+					end
+				end
+			end
+
+			if board then
+				Net:FindFirstChild("RE/GetBoard"):FireServer(true, board)
+			end
+		end)
 
 	task.wait(.15)
 	Toggle.Text="ON"
