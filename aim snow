@@ -35,9 +35,9 @@ local function safeEquip(tool)
 end
 
 --------------------------------------------------
--- ⭐ EQUIP ALL AT ONCE (NO DELAY METHOD)
+-- GET ALL SNOW
 --------------------------------------------------
-local function equipAllSnow()
+local function getAllSnow()
 	local tools={}
 	local char=player.Character
 	local backpack=player:FindFirstChild("Backpack")
@@ -53,7 +53,6 @@ local function equipAllSnow()
 	if backpack then
 		for _,v in pairs(backpack:GetChildren()) do
 			if v:IsA("Tool") and VALID_TOOLS[v.Name] then
-				v.Parent=char
 				table.insert(tools,v)
 			end
 		end
@@ -63,19 +62,24 @@ local function equipAllSnow()
 end
 
 --------------------------------------------------
--- SMART AIM
+-- ⭐ SMART AIM FUNCTION
 --------------------------------------------------
 local lastVelocity=Vector3.zero
 
 local function getSmartPrediction(origin,hrp)
 
 	local velocity=hrp.AssemblyLinearVelocity
+
+	-- smooth velocity (anti zigzag)
 	local smoothVelocity=(velocity+lastVelocity)/2
 	lastVelocity=velocity
 
 	local distance=(hrp.Position-origin).Magnitude
+
+	-- dynamic prediction time
 	local predictTime=math.clamp(distance/110,0.07,0.32)
 
+	-- jump compensation
 	local verticalOffset=0
 	if math.abs(velocity.Y)>2 then
 		verticalOffset=velocity.Y*0.12
@@ -86,11 +90,12 @@ local function getSmartPrediction(origin,hrp)
 		+smoothVelocity*predictTime
 		+Vector3.new(0,verticalOffset,0)
 
+	-- aim chest instead foot
 	return predictedPos-Vector3.new(0,2.2,0)
 end
 
 --------------------------------------------------
--- GUI (GIỮ NGUYÊN)
+-- GUI
 --------------------------------------------------
 local ScreenGui=Instance.new("ScreenGui")
 ScreenGui.Name="SnowHub"
@@ -123,9 +128,6 @@ TargetButton.Font=Enum.Font.GothamBold
 TargetButton.TextSize=12
 Instance.new("UICorner",TargetButton)
 
---------------------------------------------------
--- TARGET SELECT
---------------------------------------------------
 local ListFrame=Instance.new("Frame",ScreenGui)
 ListFrame.Size=UDim2.new(0,200,0,160)
 ListFrame.Position=Main.Position+UDim2.new(0,45,0,45)
@@ -137,6 +139,7 @@ Instance.new("UICorner",ListFrame)
 local Scroll=Instance.new("ScrollingFrame",ListFrame)
 Scroll.Size=UDim2.new(1,0,1,0)
 Scroll.BackgroundTransparency=1
+Scroll.ScrollBarThickness=4
 
 local UIList=Instance.new("UIListLayout",Scroll)
 
@@ -150,6 +153,8 @@ local function refreshList()
 			local btn=Instance.new("TextButton")
 			btn.Size=UDim2.new(1,-10,0,30)
 			btn.Text=plr.DisplayName
+			btn.BackgroundColor3=Color3.fromRGB(20,20,20)
+			btn.TextColor3=Color3.new(1,1,1)
 			btn.Parent=Scroll
 
 			btn.MouseButton1Click:Connect(function()
@@ -170,7 +175,54 @@ TargetButton.MouseButton1Click:Connect(function()
 end)
 
 --------------------------------------------------
--- ⭐ MAIN FIRE (NO DELAY MULTI GUN)
+-- DRAG
+--------------------------------------------------
+local dragging=false
+local dragInput
+local dragStart
+local startPos
+
+local DragBar=Instance.new("Frame",Main)
+DragBar.Size = UDim2.new(1, 0, 0, 4)
+DragBar.Position = UDim2.new(0, 0, 0, 48)
+DragBar.BackgroundColor3=Color3.fromRGB(255,255,255)
+DragBar.BackgroundTransparency=.25
+DragBar.Active=true
+Instance.new("UICorner",DragBar)
+
+DragBar.InputBegan:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseButton1
+	or input.UserInputType==Enum.UserInputType.Touch then
+		dragging=true
+		dragInput=input
+		dragStart=input.Position
+		startPos=Main.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState==Enum.UserInputState.End then
+				dragging=false
+			end
+		end)
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input~=dragInput or not dragging then return end
+
+	local delta=input.Position-dragStart
+
+	Main.Position=UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset+delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset+delta.Y
+	)
+
+	ListFrame.Position=Main.Position+UDim2.new(0,45,0,45)
+end)
+
+--------------------------------------------------
+-- ⭐ MAIN FIRE (SMART AIM)
 --------------------------------------------------
 Toggle.MouseButton1Click:Connect(function()
 
@@ -185,29 +237,39 @@ Toggle.MouseButton1Click:Connect(function()
 	local oldTool=char:FindFirstChildOfClass("Tool")
 
 	local targetChar=SelectedTarget.Character
-	local hrp=targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+	if targetChar then
+		local hrp=targetChar:FindFirstChild("HumanoidRootPart")
 
-	if hrp and snowRemote then
+		if hrp and snowRemote then
 
-		local origin=char.Head.Position
-		local targetPos=getSmartPrediction(origin,hrp)
-		local direction=(targetPos-origin).Unit
+			local origin=char.Head.Position
 
-		-- ⭐ EQUIP ALL SAME FRAME
-		local tools=equipAllSnow()
+			-- ⭐ SMART PREDICT HERE
+			local targetPos=getSmartPrediction(origin,hrp)
+			local direction=(targetPos-origin).Unit
 
-		task.wait() -- server sync
+			            local tools = getAllSnow()
 
-		-- ⭐ FIRE SAME TICK (NO DELAY)
-		for i=1,#tools do
-			task.spawn(function()
-				snowRemote:FireServer(origin,direction,targetPos)
-			end)
+            -- equip tất cả tool cùng lúc
+            for _, tool in ipairs(tools) do
+                tool.Parent = char
+            end
+
+            -- đợi server nhận tool
+            game:GetService("RunService").Heartbeat:Wait()
+
+            -- bắn tất cả trong cùng 1 tick
+            for i = 1, #tools do
+                pcall(function()
+                    snowRemote:FireServer(origin, direction, targetPos)
+                end)
+            end
 		end
 	end
 
-	if oldTool then
+		if oldTool then
 		safeEquip(oldTool)
+		game:GetService("RunService").Heartbeat:Wait()
 	end
 
 	pcall(function()
