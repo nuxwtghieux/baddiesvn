@@ -97,9 +97,9 @@ end
 --------------------------------------------------
 -- BOARD
 --------------------------------------------------
+local lastBoardTime = 0
 local function giveBoard()
-	-- ❌ chặn spam trong 0.5s
-	if tick() - lastBoardTime < 0.5 then return end
+	if tick() - lastBoardTime < 0.62 then return end
 	lastBoardTime = tick()
 
 	pcall(function()
