@@ -1,0 +1,279 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/hii"))()
+
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+
+--// REMOTE
+local rpgRemote = Net:FindFirstChild("RE/RPG_Fire")
+local rpgReloadRemote = Net:FindFirstChild("RE/RPG_Reload")
+
+--// STATE
+local SelectedTarget = nil
+
+--// VALID TOOLS
+local VALID_TOOLS = {
+ ["RPG"] = true
+}
+
+--------------------------------------------------
+-- SAFE EQUIP
+--------------------------------------------------
+local function safeEquip(tool)
+ local char = player.Character
+ if not char or not tool then return end
+
+ local hum = char:FindFirstChildOfClass("Humanoid")
+ if hum then
+  hum:UnequipTools()
+ end
+
+ task.wait()
+ tool.Parent = char
+end
+
+--------------------------------------------------
+-- GET ALL RPG
+--------------------------------------------------
+local function getAllRPG()
+ local tools = {}
+ local char = player.Character
+ local backpack = player:FindFirstChild("Backpack")
+
+ if char then
+  for _,v in pairs(char:GetChildren()) do
+   if v:IsA("Tool") and VALID_TOOLS[v.Name] then
+    table.insert(tools,v)
+   end
+  end
+ end
+
+ if backpack then
+  for _,v in pairs(backpack:GetChildren()) do
+   if v:IsA("Tool") and VALID_TOOLS[v.Name] then
+    table.insert(tools,v)
+   end
+  end
+ end
+
+ return tools
+end
+
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "RPGHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame",ScreenGui)
+Main.Size = UDim2.new(0,220,0,40)
+Main.Position = UDim2.new(0.5,-110,0,120)
+Main.BackgroundTransparency = 1
+Main.Active = true
+
+local Toggle = Instance.new("TextButton",Main)
+Toggle.Size = UDim2.new(0,40,0,40)
+Toggle.BackgroundColor3 = Color3.fromRGB(0,0,0)
+Toggle.Text = "ON"
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Font = Enum.Font.GothamBold
+Toggle.TextSize = 12
+Instance.new("UICorner",Toggle)
+
+local TargetButton = Instance.new("TextButton",Main)
+TargetButton.Size = UDim2.new(0,170,0,40)
+TargetButton.Position = UDim2.new(0,45,0,0)
+TargetButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+TargetButton.BackgroundTransparency = .2
+TargetButton.Text = "SELECT TARGET"
+TargetButton.TextColor3 = Color3.new(1,1,1)
+TargetButton.Font = Enum.Font.GothamBold
+TargetButton.TextSize = 12
+Instance.new("UICorner",TargetButton)
+
+local ListFrame = Instance.new("Frame",ScreenGui)
+ListFrame.Size = UDim2.new(0,200,0,160)
+ListFrame.Position = Main.Position + UDim2.new(0,45,0,45)
+ListFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+ListFrame.BackgroundTransparency = .3
+ListFrame.Visible = false
+Instance.new("UICorner",ListFrame)
+
+local Scroll = Instance.new("ScrollingFrame",ListFrame)
+Scroll.Size = UDim2.new(1,0,1,0)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 4
+
+local UIList = Instance.new("UIListLayout",Scroll)
+
+local function refreshList()
+ for _,v in pairs(Scroll:GetChildren()) do
+  if v:IsA("TextButton") then
+   v:Destroy()
+  end
+ end
+
+ for _,plr in pairs(Players:GetPlayers()) do
+  if plr ~= player then
+   local btn = Instance.new("TextButton")
+   btn.Size = UDim2.new(1,-10,0,30)
+   btn.Text = plr.DisplayName
+   btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+   btn.TextColor3 = Color3.new(1,1,1)
+   btn.Parent = Scroll
+
+   btn.MouseButton1Click:Connect(function()
+    SelectedTarget = plr
+    TargetButton.Text = plr.DisplayName
+    ListFrame.Visible = false
+   end)
+  end
+ end
+
+ task.wait()
+ Scroll.CanvasSize = UDim2.new(0,0,0,UIList.AbsoluteContentSize.Y)
+end
+
+TargetButton.MouseButton1Click:Connect(function()
+ ListFrame.Visible = not ListFrame.Visible
+ if ListFrame.Visible then
+  refreshList()
+ end
+end)
+
+--------------------------------------------------
+-- DRAG
+--------------------------------------------------
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+local DragBar = Instance.new("Frame",Main)
+DragBar.Size = UDim2.new(1,0,0,4)
+DragBar.Position = UDim2.new(0,0,0,48)
+DragBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+DragBar.BackgroundTransparency = .25
+DragBar.Active = true
+Instance.new("UICorner",DragBar)
+
+DragBar.InputBegan:Connect(function(input)
+ if input.UserInputType == Enum.UserInputType.MouseButton1
+ or input.UserInputType == Enum.UserInputType.Touch then
+
+  dragging = true
+  dragInput = input
+  dragStart = input.Position
+  startPos = Main.Position
+
+  input.Changed:Connect(function()
+   if input.UserInputState == Enum.UserInputState.End then
+    dragging = false
+   end
+  end)
+ end
+end)
+
+UIS.InputChanged:Connect(function(input)
+ if input ~= dragInput or not dragging then return end
+
+ local delta = input.Position - dragStart
+
+ Main.Position = UDim2.new(
+  startPos.X.Scale,
+  startPos.X.Offset + delta.X,
+  startPos.Y.Scale,
+  startPos.Y.Offset + delta.Y
+ )
+
+ ListFrame.Position = Main.Position + UDim2.new(0,45,0,45)
+end)
+
+--------------------------------------------------
+-- MAIN FIRE
+--------------------------------------------------
+Toggle.MouseButton1Click:Connect(function()
+
+ Toggle.Text = "..."
+
+ local char = player.Character
+ if not char or not SelectedTarget then
+  Toggle.Text = "ON"
+  return
+ end
+
+ local oldTool = char:FindFirstChildOfClass("Tool")
+
+ local targetChar = SelectedTarget.Character
+ if targetChar then
+  local hrp = targetChar:FindFirstChild("HumanoidRootPart")
+
+  if hrp and rpgRemote then
+
+   -- AIM XUỐNG BÀN CHÂN
+   local targetPos = hrp.Position - Vector3.new(0,4,0)
+
+   local tools = getAllRPG()
+
+   for _,tool in ipairs(tools) do
+    tool.Parent = char
+   end
+
+   -- ĐỢI CẦM RPG HẲN RA
+   task.wait(0.2)
+
+   for i = 1,#tools do
+    pcall(function()
+     rpgRemote:FireServer(targetPos)
+    end)
+   end
+
+   pcall(function()
+    rpgReloadRemote:FireServer()
+   end)
+  end
+ end
+
+ if oldTool then
+  safeEquip(oldTool)
+  RunService.Heartbeat:Wait()
+ end
+
+ pcall(function()
+  local board
+
+  for _,tool in pairs(player.Character:GetChildren()) do
+   if tool:IsA("Tool") and string.find(string.lower(tool.Name),"board") then
+    board = tool
+    break
+   end
+  end
+
+  if not board then
+   local backpack = player:FindFirstChild("Backpack")
+
+   if backpack then
+    for _,tool in pairs(backpack:GetChildren()) do
+     if tool:IsA("Tool") and string.find(string.lower(tool.Name),"board") then
+      board = tool
+      break
+     end
+    end
+   end
+  end
+
+  if board then
+   Net:FindFirstChild("RE/GetBoard"):FireServer(true, board)
+  end
+ end)
+
+ task.wait(0.15)
+ Toggle.Text = "ON"
+end)
