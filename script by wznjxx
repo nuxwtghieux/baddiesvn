@@ -97,36 +97,22 @@ end
 --------------------------------------------------
 -- BOARD
 --------------------------------------------------
-local lastBoardTime = 0
 local function giveBoard()
-	if tick() - lastBoardTime < 0.62 then return end
-	lastBoardTime = tick()
+	local char = player.Character
+	if not char then return end
 
+	-- lấy tool đang cầm (oldTool logic)
+	local tool = char:FindFirstChildOfClass("Tool")
+	if not tool then return end
+
+	-- đảm bảo tool đang ở character
+	tool.Parent = char
+
+	task.wait(0.05)
+
+	-- kích hoạt luôn
 	pcall(function()
-		local board
-
-		for _,tool in pairs(player.Character:GetChildren()) do
-			if tool:IsA("Tool") and string.find(string.lower(tool.Name),"board") then
-				board = tool
-				break
-			end
-		end
-
-		if not board then
-			local backpack = player:FindFirstChild("Backpack")
-			if backpack then
-				for _,tool in pairs(backpack:GetChildren()) do
-					if tool:IsA("Tool") and string.find(string.lower(tool.Name),"board") then
-						board = tool
-						break
-					end
-				end
-			end
-		end
-
-		if board then
-			Net:FindFirstChild("RE/GetBoard"):FireServer(true, board)
-		end
+		tool:Activate()
 	end)
 end
 --------------------------------------------------
@@ -337,7 +323,7 @@ SnowBtn.MouseButton1Click:Connect(function()
 
 	giveBoard()
 
-	task.wait(.15)
+	task.wait(0.15)
 	SnowBtn.Text="SNOW"
 end)
 
@@ -370,7 +356,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				rpg.Parent = char
 
 				-- ⏱ đợi rút RPG
-				task.wait(0.2)
+				task.wait(0.21)
 
 				-- 🔥 bắn
 				pcall(function()
@@ -383,7 +369,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				end)
 
 				-- ⏱ đợi bắn xong
-				task.wait(0.8)
+				task.wait(1.2)
 			end
 		end
 	end
@@ -402,8 +388,8 @@ end)
 
 --// HITBOX + NAME (FINAL FULL FIX)
 
-local HITBOX_SIZE = 15
-local HITBOX_TRANSPARENCY = 0.65
+local HITBOX_SIZE = 35
+local HITBOX_TRANSPARENCY = 0.7
 local HITBOX_COLOR = Color3.fromRGB(0,150,70)
 
 local currentTarget = nil
