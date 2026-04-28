@@ -1,0 +1,512 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/hii"))()
+
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+
+--// REMOTES
+local snowRemote = Net:FindFirstChild("RE/snowballLauncherFire")
+local rpgRemote = Net:FindFirstChild("RE/RPG_Fire")
+local rpgReloadRemote = Net:FindFirstChild("RE/RPG_Reload")
+
+--// STATE
+local SelectedTarget = nil
+
+--// TOOLS
+local VALID_SNOW = {
+	["Snowball Launcher"] = true,
+	["Golden Snowball Launcher"] = true
+}
+
+local VALID_RPG = {
+	["RPG"] = true
+}
+
+--------------------------------------------------
+-- SAFE EQUIP
+--------------------------------------------------
+local function safeEquip(tool)
+	local char = player.Character
+	if not char or not tool then return end
+
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then hum:UnequipTools() end
+
+	task.wait()
+	tool.Parent = char
+end
+
+--------------------------------------------------
+-- GET TOOLS
+--------------------------------------------------
+local function getTools(valid)
+	local tools = {}
+	local char = player.Character
+	local backpack = player:FindFirstChild("Backpack")
+
+	if char then
+		for _,v in pairs(char:GetChildren()) do
+			if v:IsA("Tool") and valid[v.Name] then
+				table.insert(tools,v)
+			end
+		end
+	end
+
+	if backpack then
+		for _,v in pairs(backpack:GetChildren()) do
+			if v:IsA("Tool") and valid[v.Name] then
+				table.insert(tools,v)
+			end
+		end
+	end
+
+	return tools
+end
+
+--------------------------------------------------
+-- SMART AIM SNOW
+--------------------------------------------------
+local lastVelocity = Vector3.zero
+
+local function getSmartPrediction(origin,hrp)
+	local velocity = hrp.AssemblyLinearVelocity
+	local smoothVelocity = (velocity + lastVelocity) / 2
+	lastVelocity = velocity
+
+	local distance = (hrp.Position - origin).Magnitude
+	local predictTime = math.clamp(distance / 110, 0.07, 0.32)
+
+	local verticalOffset = 0
+	if math.abs(velocity.Y) > 2 then
+		verticalOffset = velocity.Y * 0.12
+	end
+
+	local predictedPos =
+		hrp.Position +
+		smoothVelocity * predictTime +
+		Vector3.new(0, verticalOffset, 0)
+
+	return predictedPos - Vector3.new(0,2.2,0)
+end
+
+--------------------------------------------------
+-- BOARD
+--------------------------------------------------
+local function giveBoard()
+	-- ❌ chặn spam trong 0.5s
+	if tick() - lastBoardTime < 0.5 then return end
+	lastBoardTime = tick()
+
+	pcall(function()
+		local board
+
+		for _,tool in pairs(player.Character:GetChildren()) do
+			if tool:IsA("Tool") and string.find(string.lower(tool.Name),"board") then
+				board = tool
+				break
+			end
+		end
+
+		if not board then
+			local backpack = player:FindFirstChild("Backpack")
+			if backpack then
+				for _,tool in pairs(backpack:GetChildren()) do
+					if tool:IsA("Tool") and string.find(string.lower(tool.Name),"board") then
+						board = tool
+						break
+					end
+				end
+			end
+		end
+
+		if board then
+			Net:FindFirstChild("RE/GetBoard"):FireServer(true, board)
+		end
+	end)
+end
+--------------------------------------------------
+-- GUI
+--------------------------------------------------
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ComboHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local Main = Instance.new("Frame",ScreenGui)
+Main.Size = UDim2.new(0,210,0,70)
+Main.Position = UDim2.new(0.5,-105,0,120)
+Main.BackgroundTransparency = 1
+Main.Active = true
+
+local SnowBtn = Instance.new("TextButton",Main)
+SnowBtn.Size = UDim2.new(0,100,0,30)
+SnowBtn.Position = UDim2.new(0,0,0,0)
+SnowBtn.Text = "SNOW"
+SnowBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+SnowBtn.TextColor3 = Color3.new(1,1,1)
+SnowBtn.Font = Enum.Font.GothamBold
+SnowBtn.TextSize = 12
+Instance.new("UICorner",SnowBtn)
+
+local RpgBtn = Instance.new("TextButton",Main)
+RpgBtn.Size = UDim2.new(0,100,0,30)
+RpgBtn.Position = UDim2.new(0,110,0,0)
+RpgBtn.Text = "RPG"
+RpgBtn.BackgroundColor3 = Color3.fromRGB(0,0,0)
+RpgBtn.TextColor3 = Color3.new(1,1,1)
+RpgBtn.Font = Enum.Font.GothamBold
+RpgBtn.TextSize = 12
+Instance.new("UICorner",RpgBtn)
+
+local TargetButton = Instance.new("TextButton",Main)
+TargetButton.Size = UDim2.new(0,210,0,30)
+TargetButton.Position = UDim2.new(0,0,0,36)
+TargetButton.Text = "SELECT TARGET"
+TargetButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+TargetButton.BackgroundTransparency = .2
+TargetButton.TextColor3 = Color3.new(1,1,1)
+TargetButton.Font = Enum.Font.GothamBold
+TargetButton.TextSize = 12
+Instance.new("UICorner",TargetButton)
+
+local ListFrame = Instance.new("Frame",ScreenGui)
+ListFrame.Size = UDim2.new(0,210,0,160)
+ListFrame.Position = Main.Position + UDim2.new(0,0,0,75)
+ListFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+ListFrame.BackgroundTransparency = .3
+ListFrame.Visible = false
+Instance.new("UICorner",ListFrame)
+
+local Scroll = Instance.new("ScrollingFrame",ListFrame)
+Scroll.Size = UDim2.new(1,0,1,0)
+Scroll.BackgroundTransparency = 1
+Scroll.ScrollBarThickness = 4
+
+local UIList = Instance.new("UIListLayout",Scroll)
+
+local function refreshList()
+	for _, v in pairs(Scroll:GetChildren()) do
+		if v:IsA("TextButton") then v:Destroy() end
+	end
+
+	-- 🔻 NONE LUÔN Ở ĐẦU
+	local noneBtn = Instance.new("TextButton")
+	noneBtn.Size = UDim2.new(1,-10,0,30)
+	noneBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+	noneBtn.TextColor3 = Color3.new(1,1,1)
+	noneBtn.Font = Enum.Font.Gotham
+	noneBtn.TextSize = 12
+	noneBtn.Text = "NONE"
+	noneBtn.Parent = Scroll
+
+	Instance.new("UICorner", noneBtn).CornerRadius = UDim.new(0,6)
+
+	noneBtn.MouseButton1Click:Connect(function()
+		SelectedTarget = nil
+		TargetButton.Text = "SELECT TARGET"
+		ListFrame.Visible = false
+	end)
+
+	-- 🔻 PLAYER LIST
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1,-10,0,30)
+			btn.BackgroundColor3 = Color3.fromRGB(20,20,20)
+			btn.TextColor3 = Color3.new(1,1,1)
+			btn.Font = Enum.Font.Gotham
+			btn.TextSize = 12
+			btn.Text = plr.DisplayName
+			btn.Parent = Scroll
+
+			Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+			btn.MouseButton1Click:Connect(function()
+				SelectedTarget = plr
+				TargetButton.Text = plr.DisplayName
+				ListFrame.Visible = false
+			end)
+		end
+	end
+
+	task.wait()
+	Scroll.CanvasSize = UDim2.new(0,0,0,UIList.AbsoluteContentSize.Y)
+end
+
+TargetButton.MouseButton1Click:Connect(function()
+	ListFrame.Visible = not ListFrame.Visible
+	if ListFrame.Visible then refreshList() end
+end)
+
+--------------------------------------------------
+-- DRAG
+--------------------------------------------------
+local dragging=false
+local dragInput
+local dragStart
+local startPos
+
+local DragBar=Instance.new("Frame",Main)
+DragBar.Size=UDim2.new(1,0,0,4)
+DragBar.Position=UDim2.new(0,0,0,68)
+DragBar.BackgroundColor3=Color3.fromRGB(255,255,255)
+DragBar.BackgroundTransparency=.25
+DragBar.Active=true
+Instance.new("UICorner",DragBar)
+
+DragBar.InputBegan:Connect(function(input)
+	if input.UserInputType==Enum.UserInputType.MouseButton1
+	or input.UserInputType==Enum.UserInputType.Touch then
+		dragging=true
+		dragInput=input
+		dragStart=input.Position
+		startPos=Main.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState==Enum.UserInputState.End then
+				dragging=false
+			end
+		end)
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input~=dragInput or not dragging then return end
+
+	local delta=input.Position-dragStart
+
+	Main.Position=UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset+delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset+delta.Y
+	)
+
+	ListFrame.Position=Main.Position+UDim2.new(0,0,0,75)
+end)
+
+--------------------------------------------------
+-- SNOW FIRE
+--------------------------------------------------
+SnowBtn.MouseButton1Click:Connect(function()
+
+	SnowBtn.Text="..."
+
+	local char=player.Character
+	if not char or not SelectedTarget then
+		SnowBtn.Text="SNOW"
+		return
+	end
+
+	local oldTool=char:FindFirstChildOfClass("Tool")
+
+	local targetChar=SelectedTarget.Character
+	if targetChar then
+		local hrp=targetChar:FindFirstChild("HumanoidRootPart")
+
+		if hrp and snowRemote then
+			local origin=char.Head.Position
+			local targetPos=getSmartPrediction(origin,hrp)
+			local direction=(targetPos-origin).Unit
+
+			local tools=getTools(VALID_SNOW)
+
+			for _,tool in ipairs(tools) do
+				tool.Parent=char
+			end
+
+			RunService.Heartbeat:Wait()
+
+			for i=1,#tools do
+				pcall(function()
+					snowRemote:FireServer(origin,direction,targetPos)
+				end)
+			end
+		end
+	end
+
+	if oldTool then
+		safeEquip(oldTool)
+		RunService.Heartbeat:Wait()
+	end
+
+	giveBoard()
+
+	task.wait(.15)
+	SnowBtn.Text="SNOW"
+end)
+
+--------------------------------------------------
+-- RPG FIRE (HÁNG)
+--------------------------------------------------
+RpgBtn.MouseButton1Click:Connect(function()
+
+	RpgBtn.Text="..."
+
+	local char=player.Character
+	if not char or not SelectedTarget then
+		RpgBtn.Text="RPG"
+		return
+	end
+
+	local oldTool=char:FindFirstChildOfClass("Tool")
+
+	local targetChar=SelectedTarget.Character
+	if targetChar then
+		local hrp=targetChar:FindFirstChild("HumanoidRootPart")
+
+		if hrp and rpgRemote then
+			local targetPos = hrp.Position - Vector3.new(0,2.0,0)
+			local tools = getTools(VALID_RPG)
+
+			for _,tool in ipairs(tools) do
+				tool.Parent = char
+			end
+
+			task.wait(0.2)
+
+			for i=1,#tools do
+				pcall(function()
+					rpgRemote:FireServer(targetPos)
+				end)
+			end
+
+			pcall(function()
+				rpgReloadRemote:FireServer()
+			end)
+		end
+	end
+
+	if oldTool then
+		safeEquip(oldTool)
+		RunService.Heartbeat:Wait()
+	end
+
+	giveBoard()
+
+	task.wait(0.15)
+	RpgBtn.Text="RPG"
+end)
+
+--// HITBOX + NAME (FINAL FULL FIX)
+
+local HITBOX_SIZE = 15
+local HITBOX_TRANSPARENCY = 0.65
+local HITBOX_COLOR = Color3.fromRGB(0,150,70)
+
+local currentTarget = nil
+
+-- RESET PLAYER
+local function resetPlayer(plr)
+	if not plr or not plr.Character then return end
+
+	local char = plr.Character
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local head = char:FindFirstChild("Head")
+
+	if hrp then
+		pcall(function()
+			hrp.Size = Vector3.new(2,2,1)
+			hrp.Transparency = 1
+			hrp.Material = Enum.Material.Plastic
+		end)
+
+		local hl = hrp:FindFirstChild("TargetHighlight")
+		if hl then hl:Destroy() end
+	end
+
+	if head then
+		local bill = head:FindFirstChild("NameTag")
+		if bill then bill:Destroy() end
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+
+	-- NONE → CLEAR
+	if not SelectedTarget then
+		if currentTarget then
+			resetPlayer(currentTarget)
+		end
+		currentTarget = nil
+		return
+	end
+
+	local char = SelectedTarget.Character
+	if not char then return end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local head = char:FindFirstChild("Head")
+	if not hrp or not head then return end
+
+	-- đổi target
+	if currentTarget and currentTarget ~= SelectedTarget then
+		resetPlayer(currentTarget)
+	end
+
+	currentTarget = SelectedTarget
+
+	-- APPLY HITBOX
+	pcall(function()
+		hrp.Size = Vector3.new(HITBOX_SIZE, HITBOX_SIZE, HITBOX_SIZE)
+		hrp.Material = Enum.Material.Neon
+		hrp.Color = HITBOX_COLOR
+		hrp.Transparency = HITBOX_TRANSPARENCY
+		hrp.CanCollide = false
+	end)
+
+	-- HIGHLIGHT
+	if not hrp:FindFirstChild("TargetHighlight") then
+		local hl = Instance.new("Highlight")
+		hl.Name = "TargetHighlight"
+		hl.Adornee = char
+		hl.FillTransparency = 1
+		hl.OutlineColor = Color3.fromRGB(255,255,255)
+		hl.OutlineTransparency = 0
+		hl.Parent = hrp
+	end
+
+	-- NAME FIX CỐ ĐỊNH SIZE
+	local bill = head:FindFirstChild("NameTag")
+
+	if not bill then
+		bill = Instance.new("BillboardGui")
+		bill.Name = "NameTag"
+
+		-- 🔥 SIZE KHÔNG ĐỔI THEO KHOẢNG CÁCH
+		bill.Size = UDim2.new(0,180,0,40)
+		bill.StudsOffset = Vector3.new(0,3,0)
+		bill.AlwaysOnTop = true
+		bill.MaxDistance = math.huge
+
+		bill.Parent = head
+
+		local txt = Instance.new("TextLabel")
+		txt.Name = "NameText"
+		txt.Size = UDim2.new(1,0,1,0)
+		txt.BackgroundTransparency = 1
+
+		-- 🔥 FIX KHÔNG SCALE
+		txt.TextScaled = false
+		txt.TextSize = 18
+
+		txt.Font = Enum.Font.GothamBold
+		txt.TextColor3 = Color3.fromRGB(255,255,255)
+		txt.TextStrokeTransparency = 0
+		txt.TextStrokeColor3 = Color3.fromRGB(0,0,0)
+
+		txt.Parent = bill
+	end
+
+	-- UPDATE TEXT
+	local txt = bill:FindFirstChild("NameText")
+	if txt then
+		txt.Text = SelectedTarget.DisplayName
+	end
+
+end)
