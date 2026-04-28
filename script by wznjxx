@@ -332,38 +332,48 @@ end)
 --------------------------------------------------
 RpgBtn.MouseButton1Click:Connect(function()
 
-	RpgBtn.Text="..."
+	RpgBtn.Text = "..."
 
-	local char=player.Character
+	local char = player.Character
 	if not char or not SelectedTarget then
-		RpgBtn.Text="RPG"
+		RpgBtn.Text = "RPG"
 		return
 	end
 
-	local oldTool=char:FindFirstChildOfClass("Tool")
+	local oldTool = char:FindFirstChildOfClass("Tool")
 
-	local targetChar=SelectedTarget.Character
+	local targetChar = SelectedTarget.Character
 	if targetChar then
-		local hrp=targetChar:FindFirstChild("HumanoidRootPart")
+		local hrp = targetChar:FindFirstChild("HumanoidRootPart")
 
 		if hrp and rpgRemote then
-			
-			local tools = getTools(VALID_RPG)
-			local rpg = tools[1]
+			local targetPos = hrp.Position - Vector3.new(0, 2.0, 0)
+
+			-- chỉ lấy 1 RPG
+			local rpg = nil
+			for _, v in pairs(char:GetChildren()) do
+				if v:IsA("Tool") and v.Name == "RPG" then
+					rpg = v
+					break
+				end
+			end
+
+			if not rpg then
+				local backpack = player:FindFirstChild("Backpack")
+				if backpack then
+					for _, v in pairs(backpack:GetChildren()) do
+						if v:IsA("Tool") and v.Name == "RPG" then
+							rpg = v
+							break
+						end
+					end
+				end
+			end
 
 			if rpg then
 				rpg.Parent = char
 
-				-- ⏱ đợi equip ổn định (quan trọng cho jump)
-				task.wait(0.35)
-
-				local origin = char:FindFirstChild("Head") and char.Head.Position
-				if not origin then origin = char.HumanoidRootPart.Position end
-
-				local targetPos = hrp.Position - Vector3.new(0,2.0,0)
-
-				-- 🔥 delay nhẹ để fix jump desync
-				task.wait(0.1)
+				task.wait(0.2) -- đủ rút súng (giữ như cũ)
 
 				pcall(function()
 					rpgRemote:FireServer(targetPos)
@@ -373,21 +383,20 @@ RpgBtn.MouseButton1Click:Connect(function()
 					rpgReloadRemote:FireServer()
 				end)
 
-				-- ⏱ đợi đủ lâu để server xử lý shot (fix lỗi "bay lên là hụt")
-				task.wait(1.0)
+				-- ❗ trả tool ngay, không delay dài
+				task.wait(0.45)
 			end
 		end
 	end
 
 	if oldTool then
 		safeEquip(oldTool)
-		RunService.Heartbeat:Wait()
 	end
 
 	giveBoard()
 
 	task.wait(0.15)
-	RpgBtn.Text="RPG"
+	RpgBtn.Text = "RPG"
 end)
 
 --// HITBOX + NAME (FINAL FULL FIX)
