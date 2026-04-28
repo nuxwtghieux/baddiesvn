@@ -364,24 +364,31 @@ RpgBtn.MouseButton1Click:Connect(function()
 			local targetPos = hrp.Position - Vector3.new(0,2.0,0)
 			local tools = getTools(VALID_RPG)
 
-			for _,tool in ipairs(tools) do
-				tool.Parent = char
-			end
+			local rpg = tools[1] -- 🔥 chỉ lấy 1 cây
 
-			task.wait(0.2)
+			if rpg then
+				rpg.Parent = char
 
-			for i=1,#tools do
+				-- ⏱ đợi rút RPG
+				task.wait(0.2)
+
+				-- 🔥 bắn
 				pcall(function()
 					rpgRemote:FireServer(targetPos)
 				end)
-			end
 
-			pcall(function()
-				rpgReloadRemote:FireServer()
-			end)
+				-- reload
+				pcall(function()
+					rpgReloadRemote:FireServer()
+				end)
+
+				-- ⏱ đợi bắn xong
+				task.wait(0.8)
+			end
 		end
 	end
 
+	-- trả lại tool cũ
 	if oldTool then
 		safeEquip(oldTool)
 		RunService.Heartbeat:Wait()
