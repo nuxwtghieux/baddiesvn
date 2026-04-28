@@ -347,34 +347,38 @@ RpgBtn.MouseButton1Click:Connect(function()
 		local hrp=targetChar:FindFirstChild("HumanoidRootPart")
 
 		if hrp and rpgRemote then
-			local targetPos = hrp.Position - Vector3.new(0,2.0,0)
+			
 			local tools = getTools(VALID_RPG)
-
-			local rpg = tools[1] -- 🔥 chỉ lấy 1 cây
+			local rpg = tools[1]
 
 			if rpg then
 				rpg.Parent = char
 
-				-- ⏱ đợi rút RPG
-				task.wait(0.21)
+				-- ⏱ đợi equip ổn định (quan trọng cho jump)
+				task.wait(0.35)
 
-				-- 🔥 bắn
+				local origin = char:FindFirstChild("Head") and char.Head.Position
+				if not origin then origin = char.HumanoidRootPart.Position end
+
+				local targetPos = hrp.Position - Vector3.new(0,2.0,0)
+
+				-- 🔥 delay nhẹ để fix jump desync
+				task.wait(0.1)
+
 				pcall(function()
 					rpgRemote:FireServer(targetPos)
 				end)
 
-				-- reload
 				pcall(function()
 					rpgReloadRemote:FireServer()
 				end)
 
-				-- ⏱ đợi bắn xong
-				task.wait(1.2)
+				-- ⏱ đợi đủ lâu để server xử lý shot (fix lỗi "bay lên là hụt")
+				task.wait(1.0)
 			end
 		end
 	end
 
-	-- trả lại tool cũ
 	if oldTool then
 		safeEquip(oldTool)
 		RunService.Heartbeat:Wait()
