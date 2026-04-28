@@ -108,7 +108,7 @@ local function giveBoard()
 	-- đảm bảo tool đang ở character
 	tool.Parent = char
 
-	task.wait(0.05)
+	task.wait(0.8)
 
 	-- kích hoạt luôn
 	pcall(function()
