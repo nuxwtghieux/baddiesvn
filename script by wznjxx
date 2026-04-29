@@ -356,7 +356,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				rpg.Parent = char
 
 				-- ⏱ đợi rút RPG
-				task.wait(0.21)
+				task.wait(0.2)
 
 				-- 🔥 bắn
 				pcall(function()
@@ -369,7 +369,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				end)
 
 				-- ⏱ đợi bắn xong
-				task.wait(0.8)
+				task.wait(0.75)
 			end
 		end
 	end
