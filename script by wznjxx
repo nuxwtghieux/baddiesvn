@@ -352,11 +352,10 @@ RpgBtn.MouseButton1Click:Connect(function()
 
 			local rpg = tools[1] -- 🔥 chỉ lấy 1 cây
 
-			if rpg then
-				rpg.Parent = char
-
-				-- ⏱ đợi rút RPG
-				task.wait(0.2)
+		if rpg then
+        disableHitboxUntil = tick() + 3
+	      rpg.Parent = char
+	      task.wait(0.2)
 
 				-- 🔥 bắn
 				pcall(function()
@@ -369,7 +368,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				end)
 
 				-- ⏱ đợi bắn xong
-				task.wait(0.75)
+				task.wait(0.65)
 			end
 		end
 	end
@@ -393,6 +392,7 @@ local HITBOX_TRANSPARENCY = 0.7
 local HITBOX_COLOR = Color3.fromRGB(0,150,70)
 
 local currentTarget = nil
+local disableHitboxUntil = 0
 
 -- RESET PLAYER
 local function resetPlayer(plr)
@@ -443,8 +443,13 @@ RunService.RenderStepped:Connect(function()
 	end
 
 	currentTarget = SelectedTarget
+  -- 🔥 đang bắn RPG → KHÔNG APPLY HITBOX
+if tick() < disableHitboxUntil then
+	return
+end
 
-	-- APPLY HITBOX
+	-- APPLY HITBOX (có delay khi bắn RPG)
+if tick() > disableHitboxUntil then
 	pcall(function()
 		hrp.Size = Vector3.new(HITBOX_SIZE, HITBOX_SIZE, HITBOX_SIZE)
 		hrp.Material = Enum.Material.Neon
@@ -452,6 +457,14 @@ RunService.RenderStepped:Connect(function()
 		hrp.Transparency = HITBOX_TRANSPARENCY
 		hrp.CanCollide = false
 	end)
+else
+	-- reset về normal khi đang bắn RPG
+	pcall(function()
+		hrp.Size = Vector3.new(2,2,1)
+		hrp.Transparency = 1
+		hrp.Material = Enum.Material.Plastic
+	end)
+end
 
 	-- HIGHLIGHT
 	if not hrp:FindFirstChild("TargetHighlight") then
