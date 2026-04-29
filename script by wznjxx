@@ -384,7 +384,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				end)
 
 				-- ❗ trả tool ngay, không delay dài
-				task.wait(0.45)
+				task.wait(0.55)
 			end
 		end
 	end
