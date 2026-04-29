@@ -108,7 +108,7 @@ local function giveBoard()
 	-- đảm bảo tool đang ở character
 	tool.Parent = char
 
-	task.wait(0.6)
+	task.wait(0.05)
 
 	-- kích hoạt luôn
 	pcall(function()
@@ -332,71 +332,58 @@ end)
 --------------------------------------------------
 RpgBtn.MouseButton1Click:Connect(function()
 
-	RpgBtn.Text = "..."
+	RpgBtn.Text="..."
 
-	local char = player.Character
+	local char=player.Character
 	if not char or not SelectedTarget then
-		RpgBtn.Text = "RPG"
+		RpgBtn.Text="RPG"
 		return
 	end
 
-	local oldTool = char:FindFirstChildOfClass("Tool")
+	local oldTool=char:FindFirstChildOfClass("Tool")
 
-	local targetChar = SelectedTarget.Character
+	local targetChar=SelectedTarget.Character
 	if targetChar then
-		local hrp = targetChar:FindFirstChild("HumanoidRootPart")
+		local hrp=targetChar:FindFirstChild("HumanoidRootPart")
 
 		if hrp and rpgRemote then
-			local targetPos = hrp.Position - Vector3.new(0, 2.0, 0)
+			local targetPos = hrp.Position - Vector3.new(0,2.0,0)
+			local tools = getTools(VALID_RPG)
 
-			-- chỉ lấy 1 RPG
-			local rpg = nil
-			for _, v in pairs(char:GetChildren()) do
-				if v:IsA("Tool") and v.Name == "RPG" then
-					rpg = v
-					break
-				end
-			end
-
-			if not rpg then
-				local backpack = player:FindFirstChild("Backpack")
-				if backpack then
-					for _, v in pairs(backpack:GetChildren()) do
-						if v:IsA("Tool") and v.Name == "RPG" then
-							rpg = v
-							break
-						end
-					end
-				end
-			end
+			local rpg = tools[1] -- 🔥 chỉ lấy 1 cây
 
 			if rpg then
 				rpg.Parent = char
 
-				task.wait(0.2) -- đủ rút súng (giữ như cũ)
+				-- ⏱ đợi rút RPG
+				task.wait(0.21)
 
+				-- 🔥 bắn
 				pcall(function()
 					rpgRemote:FireServer(targetPos)
 				end)
 
+				-- reload
 				pcall(function()
 					rpgReloadRemote:FireServer()
 				end)
 
-				-- ❗ trả tool ngay, không delay dài
-				task.wait(0.55)
+				-- ⏱ đợi bắn xong
+				task.wait(0.8)
 			end
 		end
 	end
 
+	-- trả lại tool cũ
 	if oldTool then
 		safeEquip(oldTool)
+		RunService.Heartbeat:Wait()
 	end
 
 	giveBoard()
 
 	task.wait(0.15)
-	RpgBtn.Text = "RPG"
+	RpgBtn.Text="RPG"
 end)
 
 --// HITBOX + NAME (FINAL FULL FIX)
