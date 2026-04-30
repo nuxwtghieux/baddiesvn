@@ -355,7 +355,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 		if rpg then
         disableHitboxUntil = tick() + 3
 	      rpg.Parent = char
-	      task.wait(0.28)
+	      task.wait(0.32)
 
 				-- 🔥 bắn
 				pcall(function()
@@ -368,7 +368,7 @@ RpgBtn.MouseButton1Click:Connect(function()
 				end)
 
 				-- ⏱ đợi bắn xong
-				task.wait(0.725)
+				task.wait(0.82)
 			end
 		end
 	end
