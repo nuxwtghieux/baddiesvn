@@ -313,7 +313,7 @@ SnowBtn.MouseButton1Click:Connect(function()
 
 		if hrp and snowRemote then
 			local origin = char.Head.Position
-            local targetPos = hrp.Position - Vector3.new(0,2.2,0)
+            local targetPos = hrp.Position - Vector3.new(0,2.8,0)
             local direction = (targetPos - origin).Unit
 
 			local tools=getTools(VALID_SNOW)
