@@ -112,7 +112,7 @@ local function giveBoard()
 
 	-- 🔥 BOOST SPEED TRƯỚC KHI ACTIVATE
 	if humanoid then
-		humanoid.WalkSpeed = 30
+		humanoid.WalkSpeed = 35
 
 		task.delay(0.5, function()
 			if humanoid then
