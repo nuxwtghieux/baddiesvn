@@ -1,5 +1,5 @@
 --// KIỂM TRA USER ID (BẢO MẬT) - Chỉ bạn chạy được
-if game.Players.LocalPlayer.UserId ~= 0 then
+if game.Players.LocalPlayer.UserId ~= 5044069810 then
     return
 end
 
@@ -18,6 +18,7 @@ local Net = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
 local snowRemote = Net:FindFirstChild("RE/snowballLauncherFire")
 local rpgRemote = Net:FindFirstChild("RE/RPG_Fire")
 local rpgReloadRemote = Net:FindFirstChild("RE/RPG_Reload")
+local clawsRemote = Net:FindFirstChild("RE/slasherClawsHit")
 
 --// STATE
 local SelectedTarget = nil
@@ -164,13 +165,13 @@ ScreenGui.Name = "ComboHub"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
--- ========== FRAME CHÍNH (SNOW + RPG) ==========
+-- ========== FRAME CHÍNH ==========
 local MainFrame = Instance.new("Frame",ScreenGui)
-MainFrame.Size = UDim2.new(0,210,0,45)
-MainFrame.Position = UDim2.new(0.5,-105,0,120)
+MainFrame.Size = UDim2.new(0,320,0,45)
+MainFrame.Position = UDim2.new(0.5,-160,0,120)
 MainFrame.BackgroundTransparency = 1
 
--- SNOW (trên trái)
+-- SNOW
 local SnowBtn = Instance.new("TextButton",MainFrame)
 SnowBtn.Size = UDim2.new(0,100,0,37)
 SnowBtn.Position = UDim2.new(0,0,0,0)
@@ -181,7 +182,7 @@ SnowBtn.Font = Enum.Font.GothamBold
 SnowBtn.TextSize = 14
 Instance.new("UICorner",SnowBtn)
 
--- RPG (trên phải)
+-- RPG
 local RpgBtn = Instance.new("TextButton",MainFrame)
 RpgBtn.Size = UDim2.new(0,100,0,37)
 RpgBtn.Position = UDim2.new(0,110,0,0)
@@ -192,7 +193,32 @@ RpgBtn.Font = Enum.Font.GothamBold
 RpgBtn.TextSize = 14
 Instance.new("UICorner",RpgBtn)
 
--- Drag bar cho MainFrame
+-- CLAWS (kích thước bằng TARGET)
+local ClawBtn = Instance.new("TextButton",MainFrame)
+ClawBtn.Size = UDim2.new(0,100,0,37)
+ClawBtn.Position = UDim2.new(0,220,0,0)
+
+ClawBtn.Text = "🐾 CLAWS"
+
+ClawBtn.BackgroundColor3 = Color3.fromRGB(15,15,15)
+ClawBtn.BackgroundTransparency = 0.08
+
+ClawBtn.TextColor3 = Color3.fromRGB(255,255,255)
+
+ClawBtn.Font = Enum.Font.GothamBold
+ClawBtn.TextSize = 14
+
+ClawBtn.BorderSizePixel = 0
+
+Instance.new("UICorner",ClawBtn)
+
+local ClawStroke = Instance.new("UIStroke")
+ClawStroke.Color = Color3.fromRGB(255,255,255)
+ClawStroke.Thickness = 1
+ClawStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+ClawStroke.Parent = ClawBtn
+
+-- Drag bar
 local MainDragBar = Instance.new("Frame",MainFrame)
 MainDragBar.Size = UDim2.new(1,0,0,5)
 MainDragBar.Position = UDim2.new(0,0,0,43)
@@ -203,7 +229,7 @@ Instance.new("UICorner",MainDragBar)
 
 makeDraggable(MainFrame, MainDragBar)
 
--- ========== FRAME TARGET (RIÊNG BIỆT, KHÔNG DRAG BAR) ==========
+-- ========== TARGET ==========
 local TargetFrame = Instance.new("Frame",ScreenGui)
 TargetFrame.Size = UDim2.new(0,100,0,36)
 TargetFrame.Position = UDim2.new(0.5,-50,0,175)
@@ -220,11 +246,10 @@ TargetButton.Font = Enum.Font.GothamBold
 TargetButton.TextSize = 14
 Instance.new("UICorner",TargetButton)
 
--- Drag trực tiếp trên TargetFrame (không có thanh drag riêng)
 makeDraggable(TargetFrame, TargetButton)
 
 --------------------------------------------------
--- LIST (đi theo TargetFrame)
+-- LIST
 --------------------------------------------------
 local ListFrame = Instance.new("Frame",ScreenGui)
 ListFrame.Size = UDim2.new(0,210,0,160)
@@ -396,8 +421,67 @@ RpgBtn.MouseButton1Click:Connect(function()
     RpgBtn.Text="RPG"
 end)
 
---// HITBOX + NAME
+--------------------------------------------------
+-- CLAWS
+--------------------------------------------------
+ClawBtn.MouseButton1Click:Connect(function()
 
+    if not clawsRemote then
+        return
+    end
+
+    ClawBtn.Text = "..."
+
+    pcall(function()
+        clawsRemote:FireServer(1)
+    end)
+
+    task.wait(0.5)
+
+    ClawBtn.Text = "🐾 CLAWS"
+end)
+
+--------------------------------------------------
+-- CLAWS HOVER
+--------------------------------------------------
+ClawBtn.MouseEnter:Connect(function()
+
+    ClawBtn.BackgroundTransparency = 0.02
+    ClawBtn.Size = UDim2.new(0,105,0,40)
+end)
+
+ClawBtn.MouseLeave:Connect(function()
+
+    ClawBtn.BackgroundTransparency = 0.08
+    ClawBtn.Size = UDim2.new(0,100,0,37)
+end)
+
+--------------------------------------------------
+-- CLAWS GLOW
+--------------------------------------------------
+task.spawn(function()
+
+    while true do
+
+        for i = 0.08, 0.18, 0.01 do
+
+            ClawBtn.BackgroundTransparency = i
+
+            task.wait(0.03)
+        end
+
+        for i = 0.18, 0.08, -0.01 do
+
+            ClawBtn.BackgroundTransparency = i
+
+            task.wait(0.03)
+        end
+    end
+end)
+
+--------------------------------------------------
+-- HITBOX + NAME
+--------------------------------------------------
 local HITBOX_SIZE = 13
 local HITBOX_TRANSPARENCY = 0.8
 local HITBOX_COLOR = Color3.fromRGB(0,150,70)
@@ -455,21 +539,13 @@ RunService.RenderStepped:Connect(function()
         return
     end
 
-    if tick() > disableHitboxUntil then
-        pcall(function()
-            hrp.Size = Vector3.new(HITBOX_SIZE, HITBOX_SIZE, HITBOX_SIZE)
-            hrp.Material = Enum.Material.Neon
-            hrp.Color = HITBOX_COLOR
-            hrp.Transparency = HITBOX_TRANSPARENCY
-            hrp.CanCollide = false
-        end)
-    else
-        pcall(function()
-            hrp.Size = Vector3.new(2,2,1)
-            hrp.Transparency = 1
-            hrp.Material = Enum.Material.Plastic
-        end)
-    end
+    pcall(function()
+        hrp.Size = Vector3.new(HITBOX_SIZE, HITBOX_SIZE, HITBOX_SIZE)
+        hrp.Material = Enum.Material.Neon
+        hrp.Color = HITBOX_COLOR
+        hrp.Transparency = HITBOX_TRANSPARENCY
+        hrp.CanCollide = false
+    end)
 
     if not hrp:FindFirstChild("TargetHighlight") then
         local hl = Instance.new("Highlight")
