@@ -1,5 +1,5 @@
 --// KIỂM TRA USER ID (BẢO MẬT) - Chỉ bạn chạy được
-if game.Players.LocalPlayer.UserId ~= 5044069810 then
+if game.Players.LocalPlayer.UserId ~= 0 then
     return
 end
 
