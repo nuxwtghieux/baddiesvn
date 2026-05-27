@@ -1,0 +1,466 @@
+--// AUTO ATM FARM - FULL STABLE FIX V2
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+local Enabled = false
+local highlights = {}
+
+local folder = workspace:WaitForChild("Map"):WaitForChild("ATMs")
+local RunService = game:GetService("RunService")
+local noclipConnection = nil
+
+--// REMOVE OLD GUI
+pcall(function()
+	local old = PlayerGui:FindFirstChild("ATM_FARM_GUI")
+	if old then
+		old:Destroy()
+	end
+end)
+
+--// NOCLIP
+local function enableNoclip()
+    if noclipConnection then return end
+    
+    noclipConnection = RunService.Stepped:Connect(function()
+        if not Enabled then
+            disableNoclip()
+            return
+        end
+        
+        local char = player.Character
+        if not char then return end
+        
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end)
+end
+
+local function disableNoclip()
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
+    end
+    
+    local char = player.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+--// CLEAR HIGHLIGHT
+local function clearHighlights()
+	for _, v in pairs(highlights) do
+		pcall(function()
+			v:Destroy()
+		end)
+	end
+
+	table.clear(highlights)
+end
+
+--// CHECK ATM OPEN
+local function isOpened(atm)
+	local opened = atm:FindFirstChild("Opened", true)
+
+	if not opened then
+		return false
+	end
+
+	if opened:IsA("BoolValue") then
+		return opened.Value
+	end
+
+	if opened:IsA("BasePart") then
+		return opened.Transparency < 1
+	end
+
+	return false
+end
+
+--// BETTER ATM PART DETECT
+local function getATMPart(atm)
+	if atm.PrimaryPart then
+		return atm.PrimaryPart
+	end
+
+	local priority = {
+		"Main",
+		"ATM",
+		"Base",
+		"Hitbox",
+		"Screen",
+		"Body"
+	}
+
+	for _, name in ipairs(priority) do
+		local found = atm:FindFirstChild(name, true)
+
+		if found and found:IsA("BasePart") then
+			return found
+		end
+	end
+
+	local biggest
+	local size = 0
+
+	for _, v in ipairs(atm:GetDescendants()) do
+		if v:IsA("BasePart") then
+			local vol = v.Size.X * v.Size.Y * v.Size.Z
+
+			if vol > size then
+				size = vol
+				biggest = v
+			end
+		end
+	end
+
+	return biggest
+end
+
+--// REFRESH ATM HIGHLIGHT
+local function refreshATM()
+	for _, atm in ipairs(folder:GetChildren()) do
+		if atm:IsA("Model") then
+
+			if isOpened(atm) then
+				if highlights[atm] then
+					highlights[atm]:Destroy()
+					highlights[atm] = nil
+				end
+			else
+				if not highlights[atm] then
+					local h = Instance.new("Highlight")
+					h.Name = "ATM_HL"
+					h.Adornee = atm
+					h.FillColor = Color3.fromRGB(0,255,0)
+					h.FillTransparency = 0.45
+					h.OutlineColor = Color3.fromRGB(0,255,0)
+					h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+					h.Parent = PlayerGui
+
+					highlights[atm] = h
+				end
+			end
+		end
+	end
+end
+
+--// FIND NEAREST ATM
+local function findNearestATM()
+	local char = player.Character
+	if not char then return end
+
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local nearest
+	local shortest = math.huge
+
+	for _, atm in ipairs(folder:GetChildren()) do
+		if atm:IsA("Model") and not isOpened(atm) then
+
+			local part = getATMPart(atm)
+
+			if part then
+				local dist = (root.Position - part.Position).Magnitude
+
+				if dist < shortest then
+					shortest = dist
+					nearest = atm
+				end
+			end
+		end
+	end
+
+	return nearest
+end
+
+--// GET PERFECT POSITION
+local function getStandPos(atm)
+	local part = getATMPart(atm)
+	if not part then return end
+
+	local forward = part.CFrame.LookVector
+
+	local pos = part.Position + (forward * -2.3)
+
+	return Vector3.new(pos.X, part.Position.Y, pos.Z)
+end
+
+--// FACE ATM
+local function faceATM(atm)
+	local char = player.Character
+	if not char then return end
+
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local part = getATMPart(atm)
+	if not part then return end
+
+	local targetPos = Vector3.new(
+		part.Position.X,
+		root.Position.Y,
+		part.Position.Z
+	)
+
+	root.CFrame = CFrame.lookAt(root.Position, targetPos)
+end
+
+--// MOVE
+local function moveTo(pos)
+	local char = player.Character
+	if not char then return false end
+
+	local humanoid = char:FindFirstChild("Humanoid")
+	local root = char:FindFirstChild("HumanoidRootPart")
+
+	if not humanoid or not root then
+		return false
+	end
+
+	local start = tick()
+
+	repeat
+		if not Enabled then
+			return false
+		end
+
+		local dist = (root.Position - pos).Magnitude
+
+		if dist <= 2.5 then
+			return true
+		end
+
+		humanoid:MoveTo(pos)
+
+		if math.random(1, 18) == 1 then
+			humanoid.Jump = true
+		end
+
+		if tick() - start > 8 then
+			return false
+		end
+
+		task.wait(0.1)
+
+	until false
+end
+
+--// EQUIP TOOL
+local function getTool()
+	local char = player.Character
+	if not char then return end
+
+	local tool = char:FindFirstChildOfClass("Tool")
+
+	if tool then
+		return tool
+	end
+
+	local backpack = player:FindFirstChild("Backpack")
+	if not backpack then return end
+
+	local humanoid = char:FindFirstChild("Humanoid")
+	if not humanoid then return end
+
+	for _, t in ipairs(backpack:GetChildren()) do
+		if t:IsA("Tool") then
+			humanoid:EquipTool(t)
+			task.wait(0.15)
+			return t
+		end
+	end
+end
+
+--// ATTACK
+local function attack(atm)
+	local char = player.Character
+	if not char then return end
+
+	local root = char:FindFirstChild("HumanoidRootPart")
+	local humanoid = char:FindFirstChild("Humanoid")
+
+	if not root or not humanoid then
+		return
+	end
+
+	local part = getATMPart(atm)
+	if not part then
+		return
+	end
+
+	local start = tick()
+
+	while Enabled and tick() - start < 5 do
+
+		if isOpened(atm) then
+			break
+		end
+
+		local tool = getTool()
+
+		if not tool then
+			task.wait(0.2)
+			continue
+		end
+
+		local dist = (root.Position - part.Position).Magnitude
+
+		if dist > 4 then
+			local standPos = getStandPos(atm)
+
+			if standPos then
+				root.CFrame = CFrame.new(
+					standPos,
+					Vector3.new(
+						part.Position.X,
+						standPos.Y,
+						part.Position.Z
+					)
+				)
+			end
+		end
+
+		faceATM(atm)
+
+		pcall(function()
+			tool:Activate()
+		end)
+
+		task.wait(0.03)
+	end
+end
+
+--// FARM
+local function farm()
+	while Enabled do
+
+		refreshATM()
+
+		local atm = findNearestATM()
+
+		if atm then
+			local standPos = getStandPos(atm)
+
+			if standPos and moveTo(standPos) then
+				faceATM(atm)
+				task.wait(0.15)
+				attack(atm)
+            task.wait(1.5)
+			end
+		else
+			task.wait(1)
+		end
+
+		task.wait(0.1)
+	end
+end
+
+--// GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "ATM_FARM_GUI"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,250,0,45)
+frame.Position = UDim2.new(0.5,-125,0,80)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255,255,255)
+stroke.Parent = frame
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1,0,1,0)
+button.BackgroundTransparency = 1
+button.Font = Enum.Font.GothamBold
+button.TextColor3 = Color3.new(1,1,1)
+button.TextSize = 14
+button.Text = "AUTO ATM FARM — OFF"
+button.Parent = frame
+
+--// DRAG
+local dragging
+local dragInput
+local dragStart
+local startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch
+	or input.UserInputType == Enum.UserInputType.MouseButton1 then
+
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch
+	or input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+--// TOGGLE
+button.MouseButton1Click:Connect(function()
+
+    Enabled = not Enabled
+
+    button.Text =
+        Enabled
+        and "AUTO ATM FARM — ON"
+        or "AUTO ATM FARM — OFF"
+
+    if Enabled then
+        enableNoclip()  -- THÊM DÒNG NÀY
+        task.spawn(farm)
+    else
+        disableNoclip()  -- THÊM DÒNG NÀY
+    end
+end)
+
+task.spawn(function()
+	while task.wait(0.5) do
+		if Enabled then
+			refreshATM()
+		end
+	end
+end)
