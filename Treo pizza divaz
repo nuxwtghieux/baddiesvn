@@ -1,9 +1,7 @@
 --[[
     AUTO PIZZA DELIVERY + UNDERGROUND (DƯỚI LÒNG ĐẤT)
-    - Toàn bộ cơ thể ở dưới đất
-    - Đầu ngang tầm zone deliver (có thể chỉnh cao hơn)
-    - Không di chuyển lên xuống, chỉ di chuyển ngang
-    - GUI đơn giản: chỉ ON/OFF và thời gian
+    - FIX: Không chờ CollectDollar, chỉ spam CompleteJob
+    - Kiểm tra tiền xuất hiện trong workspace
 --]]
 
 local Players = game:GetService("Players")
@@ -28,6 +26,7 @@ local TotalTime = 0
 local NoclipOn = true
 local HEAD_OFFSET = 3
 local UndergroundY = nil
+local IsBusy = false
 
 local TotalMoneyCollected = 0
 local CollectedMoneyList = {}
@@ -74,20 +73,22 @@ end
 
 local function antiStuck(hrp)
 	hrp.Velocity = Vector3.new(150, 0, 0)
-	task.wait(0.3)
+	task.wait(0.2)
 	hrp.Velocity = Vector3.new(-150, 0, 0)
-	task.wait(0.3)
+	task.wait(0.2)
 	hrp.Velocity = Vector3.new(0, 0, 150)
-	task.wait(0.3)
+	task.wait(0.2)
 	hrp.Velocity = Vector3.new(0, 0, -150)
-	task.wait(0.3)
+	task.wait(0.2)
 	hrp.Velocity = Vector3.zero
 end
 
+-- Lấy tiền mới xuất hiện trong workspace
 local function getNewMoney()
 	local newMoney = {}
-	for _, v in pairs(getnilinstances()) do
-		if v.ClassName == "MeshPart" and #v.Name > 20 then
+	for _, v in pairs(workspace:GetDescendants()) do
+		-- Nhận dạng tiền: MeshPart có tên dài (thường là ID)
+		if v:IsA("MeshPart") and #v.Name > 15 then
 			if not CollectedMoneyList[v.Name] then
 				table.insert(newMoney, v)
 			end
@@ -96,8 +97,8 @@ local function getNewMoney()
 	return newMoney
 end
 
-local function collectOneMoney(money)
-	local success = false
+-- Thu thập tiền (KHÔNG CHỜ remote)
+local function collectMoney(money)
 	pcall(function()
 		local args = {
 			[1] = {
@@ -108,19 +109,13 @@ local function collectOneMoney(money)
 		Remote:FireServer(unpack(args))
 		CollectedMoneyList[money.Name] = true
 		TotalMoneyCollected = TotalMoneyCollected + 1
-		success = true
 	end)
-	return success
 end
 
 local function collectAllNewMoney()
-	local count = 0
 	for _, money in pairs(getNewMoney()) do
-		if collectOneMoney(money) then
-			count = count + 1
-		end
+		collectMoney(money)
 	end
-	return count
 end
 
 local function calculateUndergroundY(zoneY)
@@ -141,14 +136,13 @@ local function flyToTarget(targetPos, hum, hrp)
 		hrp.Velocity = Vector3.zero
 	end
 	
-	while Enabled and hrp and hrp.Parent do
+	while Enabled and hrp and hrp.Parent and tick() - startTime < 15 do
 		local currentPos = hrp.Position
 		local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
 		local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
 		local dist = (flatCurrent - flatTarget).Magnitude
 		
 		if dist <= 1.5 then break end
-		if tick() - startTime > 20 then break end
 		
 		local direction = (flatTarget - flatCurrent).Unit
 		
@@ -172,9 +166,9 @@ local function flyToTarget(targetPos, hum, hrp)
 			))
 		end
 		
-		if (hrp.Position - lastPos).Magnitude < 1 then
+		if (hrp.Position - lastPos).Magnitude < 0.5 then
 			stuckTime = stuckTime + 0.1
-			if stuckTime >= 3 then
+			if stuckTime >= 2 then
 				antiStuck(hrp)
 				stuckTime = 0
 			end
@@ -215,33 +209,63 @@ local function findDelivery()
 	return nil
 end
 
-local function spamCompleteJob()
-	Remote:FireServer({["Event"] = "CompletedJob", ["Job"] = "Pizza"})
+local function startJob()
+	pcall(function()
+		Remote:FireServer({["Event"] = "StartJob", ["Job"] = "Pizza"})
+	end)
 end
 
-local function startJob()
-	Remote:FireServer({["Event"] = "StartJob", ["Job"] = "Pizza"})
+local function completeJob()
+	pcall(function()
+		Remote:FireServer({["Event"] = "CompletedJob", ["Job"] = "Pizza"})
+	end)
 end
 
 function farm()
 	while Enabled do
+		if IsBusy then 
+			task.wait(0.3)
+			continue 
+		end
+		IsBusy = true
+		
+		-- Kiểm tra character
 		if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+			task.wait(1)
+			IsBusy = false
+			continue
+		end
+		
+		-- StartJob
+		startJob()
+		task.wait(0.5)
+		
+		-- Tìm delivery prompt (timeout 5 giây)
+		local prompt = nil
+		local findStart = tick()
+		repeat
+			if not Enabled then 
+				IsBusy = false
+				return 
+			end
+			prompt = findDelivery()
+			if prompt then break end
+			task.wait(0.2)
+		until tick() - findStart > 5
+		
+		if not prompt then
+			IsBusy = false
+			task.wait(0.5)
+			continue
+		end
+		
+		local char, hum, hrp = getChar()
+		if not char or not hum or not hrp then
+			IsBusy = false
 			task.wait(1)
 			continue
 		end
 		
-		startJob()
-		task.wait(1)
-		
-		local prompt
-		repeat
-			if not Enabled then return end
-			if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
-			prompt = findDelivery()
-			task.wait(0.1)
-		until prompt
-		
-		local char, hum, hrp = getChar()
 		local targetPos = prompt.Parent.Position
 		
 		if not UndergroundY then
@@ -254,40 +278,48 @@ function farm()
 		hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
 		hrp.Velocity = Vector3.zero
 		
+		-- Bay tới target
 		flyToTarget(targetPos, hum, hrp)
 		
 		if Enabled and player.Character and hrp and hrp.Parent then
+			-- Deliver
 			triggerDelivery(prompt, hrp)
+			task.wait(0.3)
 			
-			local gotMoney = false
-			repeat
+			-- ===== QUAN TRỌNG: Spam CompleteJob 3 lần, KHÔNG CHỜ AI CẢ =====
+			local moneyFound = false
+			
+			for i = 1, 3 do
 				if not Enabled then break end
-				spamCompleteJob()
 				
+				completeJob()
+				task.wait(0.2)
+				
+				-- Kiểm tra xem tiền đã xuất hiện trong workspace chưa
 				local newMoney = getNewMoney()
 				if #newMoney > 0 then
+					moneyFound = true
+					-- Thu thập ngay lập tức
 					for _, money in pairs(newMoney) do
-						collectOneMoney(money)
+						collectMoney(money)
 					end
-					gotMoney = true
+					break
 				end
-				task.wait(0.5)
-			until gotMoney or not Enabled
+			end
 			
-			if gotMoney and Enabled then
+			-- Dù có tiền hay không, vẫn StartJob lại để tiếp tục
+			if Enabled then
 				startJob()
 			end
 			
-			local waitStart = tick()
-			repeat
-				collectAllNewMoney()
-				if hrp and hrp.Parent then
-					hrp.Velocity = Vector3.zero
-				end
-				task.wait(0.2)
-			until tick() - waitStart >= 0.8 or not Enabled
+			-- Thu thập nốt tiền (nếu có)
+			collectAllNewMoney()
+			
+			-- Nghỉ ngắn trước khi vòng lặp tiếp theo
+			task.wait(0.3)
 		end
 		
+		IsBusy = false
 		task.wait(0.1)
 	end
 end
@@ -310,7 +342,7 @@ RunService.Heartbeat:Connect(function()
 	end
 	
 	if Enabled and hrp and UndergroundY then
-		if math.abs(hrp.Position.Y - UndergroundY) > 1 then
+		if math.abs(hrp.Position.Y - UndergroundY) > 2 then
 			hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
 			hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
 		end
@@ -318,12 +350,15 @@ RunService.Heartbeat:Connect(function()
 end)
 
 player.CharacterAdded:Connect(function(char)
-	if not Enabled then return end
 	task.wait(1)
-	CollectedMoneyList = {}
-	task.spawn(function()
-		pcall(function() farm() end)
-	end)
+	if Enabled then
+		CollectedMoneyList = {}
+		UndergroundY = nil
+		IsBusy = false
+		task.spawn(function()
+			pcall(function() farm() end)
+		end)
+	end
 end)
 
 local function formatTime(seconds)
@@ -333,7 +368,7 @@ local function formatTime(seconds)
 	return string.format("%02d:%02d:%02d", hours, mins, secs)
 end
 
--- ==================== GUI ĐƠN GIẢN ====================
+-- ==================== GUI ====================
 local gui = Instance.new("ScreenGui")
 gui.Name = "ATM_FARM_GUI"
 gui.ResetOnSpawn = false
@@ -424,6 +459,7 @@ button.MouseButton1Click:Connect(function()
 		TotalMoneyCollected = 0
 		CollectedMoneyList = {}
 		UndergroundY = nil
+		IsBusy = false
 		StartTime = os.time()
 		task.spawn(farm)
 	else
@@ -432,6 +468,7 @@ button.MouseButton1Click:Connect(function()
 		stroke.Color = Color3.fromRGB(255, 100, 0)
 		TotalTime = TotalTime + (os.time() - StartTime)
 		StartTime = 0
+		IsBusy = false
 		local char = player.Character
 		if char then 
 			disableNoclip(char)
