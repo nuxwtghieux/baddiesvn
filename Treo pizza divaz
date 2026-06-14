@@ -1,0 +1,459 @@
+--[[
+    AUTO PIZZA DELIVERY + UNDERGROUND (DƯỚI LÒNG ĐẤT)
+    - Toàn bộ cơ thể ở dưới đất
+    - Đầu ngang tầm zone deliver (có thể chỉnh cao hơn)
+    - Không di chuyển lên xuống, chỉ di chuyển ngang
+    - GUI đơn giản: chỉ ON/OFF và thời gian
+--]]
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+pcall(function()
+	local old = PlayerGui:FindFirstChild("ATM_FARM_GUI")
+	if old then old:Destroy() end
+end)
+
+local Remote = ReplicatedStorage:WaitForChild("Event")
+local Enabled = false
+local SPEED = 30
+local FLY_SPEED = 200
+local StartTime = 0
+local TotalTime = 0
+local NoclipOn = true
+local HEAD_OFFSET = 3
+local UndergroundY = nil
+
+local TotalMoneyCollected = 0
+local CollectedMoneyList = {}
+
+local function getChar()
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hum = char:WaitForChild("Humanoid")
+	local hrp = char:WaitForChild("HumanoidRootPart")
+	return char, hum, hrp
+end
+
+local function enableNoclip(char)
+	NoclipOn = true
+	for _, v in pairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = false
+		end
+	end
+end
+
+local function disableNoclip(char)
+	NoclipOn = false
+	for _, v in pairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = true
+		end
+	end
+end
+
+local function enableFreefall(hum)
+	hum.PlatformStand = true
+	workspace.Gravity = 0
+end
+
+local function disableFreefall(hum, hrp)
+	hum.PlatformStand = false
+	hum.AutoRotate = true
+	workspace.Gravity = 196.2
+	if hrp then
+		hrp.Velocity = Vector3.zero
+	end
+	hum.WalkSpeed = SPEED
+end
+
+local function antiStuck(hrp)
+	hrp.Velocity = Vector3.new(150, 0, 0)
+	task.wait(0.3)
+	hrp.Velocity = Vector3.new(-150, 0, 0)
+	task.wait(0.3)
+	hrp.Velocity = Vector3.new(0, 0, 150)
+	task.wait(0.3)
+	hrp.Velocity = Vector3.new(0, 0, -150)
+	task.wait(0.3)
+	hrp.Velocity = Vector3.zero
+end
+
+local function getNewMoney()
+	local newMoney = {}
+	for _, v in pairs(getnilinstances()) do
+		if v.ClassName == "MeshPart" and #v.Name > 20 then
+			if not CollectedMoneyList[v.Name] then
+				table.insert(newMoney, v)
+			end
+		end
+	end
+	return newMoney
+end
+
+local function collectOneMoney(money)
+	local success = false
+	pcall(function()
+		local args = {
+			[1] = {
+				["Event"] = "CollectDollar",
+				["Dollar"] = money
+			}
+		}
+		Remote:FireServer(unpack(args))
+		CollectedMoneyList[money.Name] = true
+		TotalMoneyCollected = TotalMoneyCollected + 1
+		success = true
+	end)
+	return success
+end
+
+local function collectAllNewMoney()
+	local count = 0
+	for _, money in pairs(getNewMoney()) do
+		if collectOneMoney(money) then
+			count = count + 1
+		end
+	end
+	return count
+end
+
+local function calculateUndergroundY(zoneY)
+	return zoneY - HEAD_OFFSET
+end
+
+local function flyToTarget(targetPos, hum, hrp)
+	local startTime = tick()
+	local lastPos = hrp.Position
+	local stuckTime = 0
+	
+	if not hum.PlatformStand then
+		enableFreefall(hum)
+	end
+	
+	if UndergroundY then
+		hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+		hrp.Velocity = Vector3.zero
+	end
+	
+	while Enabled and hrp and hrp.Parent do
+		local currentPos = hrp.Position
+		local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
+		local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
+		local dist = (flatCurrent - flatTarget).Magnitude
+		
+		if dist <= 1.5 then break end
+		if tick() - startTime > 20 then break end
+		
+		local direction = (flatTarget - flatCurrent).Unit
+		
+		hrp.Velocity = Vector3.new(
+			direction.X * FLY_SPEED,
+			0,
+			direction.Z * FLY_SPEED
+		)
+		
+		if math.abs(hrp.Position.Y - UndergroundY) > 0.5 then
+			hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+			hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+		end
+		
+		hum.AutoRotate = false
+		if direction.Magnitude > 0.01 then
+			hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(
+				hrp.Position.X + direction.X,
+				hrp.Position.Y,
+				hrp.Position.Z + direction.Z
+			))
+		end
+		
+		if (hrp.Position - lastPos).Magnitude < 1 then
+			stuckTime = stuckTime + 0.1
+			if stuckTime >= 3 then
+				antiStuck(hrp)
+				stuckTime = 0
+			end
+		else
+			stuckTime = 0
+		end
+		lastPos = hrp.Position
+		
+		task.wait()
+	end
+	
+	hrp.Velocity = Vector3.zero
+	
+	if hrp and hrp.Parent and UndergroundY then
+		hrp.CFrame = CFrame.new(targetPos.X, UndergroundY, targetPos.Z)
+		hrp.Velocity = Vector3.zero
+	end
+end
+
+local function triggerDelivery(prompt, hrp)
+	if hrp and hrp.Parent then
+		hrp.Velocity = Vector3.zero
+	end
+	
+	pcall(function()
+		prompt:InputHoldBegin()
+		task.wait(0.15)
+		prompt:InputHoldEnd()
+	end)
+end
+
+local function findDelivery()
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v:IsA("ProximityPrompt") and v.ActionText == "Deliver" then
+			return v
+		end
+	end
+	return nil
+end
+
+local function spamCompleteJob()
+	Remote:FireServer({["Event"] = "CompletedJob", ["Job"] = "Pizza"})
+end
+
+local function startJob()
+	Remote:FireServer({["Event"] = "StartJob", ["Job"] = "Pizza"})
+end
+
+function farm()
+	while Enabled do
+		if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+			task.wait(1)
+			continue
+		end
+		
+		startJob()
+		task.wait(1)
+		
+		local prompt
+		repeat
+			if not Enabled then return end
+			if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+			prompt = findDelivery()
+			task.wait(0.1)
+		until prompt
+		
+		local char, hum, hrp = getChar()
+		local targetPos = prompt.Parent.Position
+		
+		if not UndergroundY then
+			UndergroundY = calculateUndergroundY(targetPos.Y)
+		end
+		
+		enableNoclip(char)
+		enableFreefall(hum)
+		
+		hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+		hrp.Velocity = Vector3.zero
+		
+		flyToTarget(targetPos, hum, hrp)
+		
+		if Enabled and player.Character and hrp and hrp.Parent then
+			triggerDelivery(prompt, hrp)
+			
+			local gotMoney = false
+			repeat
+				if not Enabled then break end
+				spamCompleteJob()
+				
+				local newMoney = getNewMoney()
+				if #newMoney > 0 then
+					for _, money in pairs(newMoney) do
+						collectOneMoney(money)
+					end
+					gotMoney = true
+				end
+				task.wait(0.5)
+			until gotMoney or not Enabled
+			
+			if gotMoney and Enabled then
+				startJob()
+			end
+			
+			local waitStart = tick()
+			repeat
+				collectAllNewMoney()
+				if hrp and hrp.Parent then
+					hrp.Velocity = Vector3.zero
+				end
+				task.wait(0.2)
+			until tick() - waitStart >= 0.8 or not Enabled
+		end
+		
+		task.wait(0.1)
+	end
+end
+
+RunService.Heartbeat:Connect(function()
+	if not Enabled then return end
+	local char = player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	
+	if hum and not hum.PlatformStand then
+		if hum.WalkSpeed ~= SPEED then
+			hum.WalkSpeed = SPEED
+		end
+	end
+	
+	if NoclipOn then
+		enableNoclip(char)
+	end
+	
+	if Enabled and hrp and UndergroundY then
+		if math.abs(hrp.Position.Y - UndergroundY) > 1 then
+			hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+			hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+		end
+	end
+end)
+
+player.CharacterAdded:Connect(function(char)
+	if not Enabled then return end
+	task.wait(1)
+	CollectedMoneyList = {}
+	task.spawn(function()
+		pcall(function() farm() end)
+	end)
+end)
+
+local function formatTime(seconds)
+	local hours = math.floor(seconds / 3600)
+	local mins = math.floor((seconds % 3600) / 60)
+	local secs = math.floor(seconds % 60)
+	return string.format("%02d:%02d:%02d", hours, mins, secs)
+end
+
+-- ==================== GUI ĐƠN GIẢN ====================
+local gui = Instance.new("ScreenGui")
+gui.Name = "ATM_FARM_GUI"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 80)
+frame.Position = UDim2.new(0.5, -100, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+frame.BorderSizePixel = 0
+frame.BackgroundTransparency = 0.15
+frame.Active = true
+frame.Parent = gui
+
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 100, 0)
+stroke.Thickness = 2
+stroke.Transparency = 0.5
+stroke.Parent = frame
+
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.8, 0, 0, 35)
+button.Position = UDim2.new(0.1, 0, 0, 10)
+button.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+button.BackgroundTransparency = 0.3
+button.Font = Enum.Font.GothamBold
+button.TextColor3 = Color3.new(1, 1, 1)
+button.TextSize = 16
+button.Text = "▶ START"
+button.Parent = frame
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(0, 8)
+buttonCorner.Parent = button
+
+local timerLabel = Instance.new("TextLabel")
+timerLabel.Size = UDim2.new(1, 0, 0, 20)
+timerLabel.Position = UDim2.new(0, 0, 0, 50)
+timerLabel.BackgroundTransparency = 1
+timerLabel.Font = Enum.Font.GothamBold
+timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timerLabel.TextSize = 14
+timerLabel.Text = "00:00:00"
+timerLabel.Parent = frame
+
+-- Draggable
+local dragging, dragInput, dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
+end)
+
+UIS.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale,
+			startPos.X.Offset + delta.X,
+			startPos.Y.Scale,
+			startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+button.MouseButton1Click:Connect(function()
+	Enabled = not Enabled
+	if Enabled then
+		button.Text = "⏸ STOP"
+		button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+		stroke.Color = Color3.fromRGB(0, 255, 100)
+		TotalMoneyCollected = 0
+		CollectedMoneyList = {}
+		UndergroundY = nil
+		StartTime = os.time()
+		task.spawn(farm)
+	else
+		button.Text = "▶ START"
+		button.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+		stroke.Color = Color3.fromRGB(255, 100, 0)
+		TotalTime = TotalTime + (os.time() - StartTime)
+		StartTime = 0
+		local char = player.Character
+		if char then 
+			disableNoclip(char)
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hum and hrp then
+				disableFreefall(hum, hrp)
+			end
+		end
+	end
+end)
+
+local function updateTimer()
+	while true do
+		if Enabled then
+			local elapsed = TotalTime + (os.time() - StartTime)
+			timerLabel.Text = formatTime(elapsed)
+		else
+			timerLabel.Text = formatTime(TotalTime)
+		end
+		task.wait(0.1)
+	end
+end
+
+task.spawn(updateTimer)
