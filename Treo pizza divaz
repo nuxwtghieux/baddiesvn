@@ -2,6 +2,7 @@
     AUTO PIZZA DELIVERY + UNDERGROUND (DƯỚI LÒNG ĐẤT)
     - Tự động mua và đeo Ski Mask trước khi farm
     - GUI: START/STOP + tiền kiếm được + thời gian chạy
+    - FIX: Nếu bị văng/lag, dừng 2s rồi tiếp tục
 --]]
 
 local Players = game:GetService("Players")
@@ -326,10 +327,14 @@ local function calculateUndergroundY(zoneY)
 	return zoneY - HEAD_OFFSET
 end
 
+--// FLY TO TARGET (CÓ CHỐNG LAG + VĂNG - DỪNG HẲN 2S)
 local function flyToTarget(targetPos, hum, hrp)
 	local startTime = tick()
 	local lastPos = hrp.Position
 	local stuckTime = 0
+	local isWaiting = false
+	local waitStartTime = 0
+	local resetCount = 0
 	
 	if not hum.PlatformStand then
 		enableFreefall(hum)
@@ -340,16 +345,70 @@ local function flyToTarget(targetPos, hum, hrp)
 		hrp.Velocity = Vector3.zero
 	end
 	
-	while Enabled and hrp and hrp.Parent and tick() - startTime < 15 do
+	while Enabled and hrp and hrp.Parent do
 		local currentPos = hrp.Position
 		local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
 		local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
 		local dist = (flatCurrent - flatTarget).Magnitude
 		
-		if dist <= 1.5 then break end
+		-- Nếu đã tới nơi thì thoát
+		if dist <= 1.5 then 
+			print("✅ Đã tới điểm giao!")
+			break 
+		end
 		
+		-- THỜI GIAN CHỜ KHI BỊ LAG/VĂNG (SAU 5S)
+		if tick() - startTime > 5 and not isWaiting then
+			print("⏳ Quá 5s chưa tới! Dừng tại chỗ 2 giây...")
+			isWaiting = true
+			waitStartTime = tick()
+			-- ÉP DỪNG HẲN
+			hrp.Velocity = Vector3.zero
+			-- Giữ nguyên vị trí
+			if hrp and UndergroundY then
+				hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+			end
+		end
+		
+		-- ĐANG CHỜ - KHÔNG CHO DI CHUYỂN
+		if isWaiting then
+			-- ÉP DỪNG HẲN TẠI CHỖ
+			hrp.Velocity = Vector3.zero
+			if hrp and UndergroundY then
+				hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+			end
+			
+			-- Chờ đủ 2 giây
+			if tick() - waitStartTime >= 2 then
+				print("✅ Tiếp tục bay...")
+				isWaiting = false
+				startTime = tick() -- Reset lại thời gian
+				resetCount = resetCount + 1
+			end
+			task.wait()
+			continue
+		end
+		
+		-- Quá 20 giây tổng hoặc reset quá 3 lần => thoát
+		if tick() - startTime > 20 or resetCount > 3 then 
+			print("⚠️ Không thể tới điểm giao sau nhiều lần thử!")
+			break 
+		end
+		
+		-- Nếu bị văng quá xa (cách target > 200) thì reset về gần
+		if dist > 200 then
+			print("⚠️ Bị văng quá xa! Đưa về gần target...")
+			hrp.CFrame = CFrame.new(targetPos.X, UndergroundY, targetPos.Z)
+			hrp.Velocity = Vector3.zero
+			startTime = tick()
+			task.wait(0.5)
+			continue
+		end
+		
+		-- TÍNH HƯỚNG BAY
 		local direction = (flatTarget - flatCurrent).Unit
 		
+		-- BAY TỚI
 		hrp.Velocity = Vector3.new(
 			direction.X * FLY_SPEED,
 			0,
@@ -370,6 +429,7 @@ local function flyToTarget(targetPos, hum, hrp)
 			))
 		end
 		
+		-- CHỐNG STUCK
 		if (hrp.Position - lastPos).Magnitude < 0.5 then
 			stuckTime = stuckTime + 0.1
 			if stuckTime >= 2 then
