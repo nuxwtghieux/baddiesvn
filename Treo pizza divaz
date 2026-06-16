@@ -2,7 +2,7 @@
     AUTO PIZZA DELIVERY + UNDERGROUND (DƯỚI LÒNG ĐẤT)
     - Tự động mua và đeo Ski Mask trước khi farm
     - GUI: START/STOP + tiền kiếm được + thời gian chạy
-    - FIX: Nếu bị văng/lag, dừng 2s rồi tiếp tục
+    - ÉP BUỘC CẦM PIZZAJOB NGAY SAU MỖI LẦN COMPLETEJOB
 --]]
 
 local Players = game:GetService("Players")
@@ -14,8 +14,8 @@ local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
 pcall(function()
-	local old = PlayerGui:FindFirstChild("PIZZA_FARM_GUI")
-	if old then old:Destroy() end
+    local old = PlayerGui:FindFirstChild("PIZZA_FARM_GUI")
+    if old then old:Destroy() end
 end)
 
 local Remote = ReplicatedStorage:WaitForChild("Event")
@@ -27,48 +27,35 @@ local HEAD_OFFSET = 6
 local UndergroundY = nil
 local IsBusy = false
 local MaskEquipped = false
+local isEquipping = false
 
---// BIẾN THỜI GIAN
 local StartTime = 0
 local TotalTime = 0
-
---// BIẾN ĐẾM TIỀN
 local TotalEarned = 0
 local lastKnownMoney = 0
+local CollectedMoneyList = {}
 
---// HÀM LẤY TIỀN GỐC TỪ LEADERSTATS
 local function getBaseMoney()
     local leaderstats = player:FindFirstChild("leaderstats")
     if leaderstats then
-        local moneyValue = leaderstats:FindFirstChild("Money")
-        if not moneyValue then moneyValue = leaderstats:FindFirstChild("Cash") end
-        if not moneyValue then moneyValue = leaderstats:FindFirstChild("Dollars") end
-        if not moneyValue then moneyValue = leaderstats:FindFirstChild("Points") end
-        if not moneyValue then moneyValue = leaderstats:FindFirstChild("Coin") end
-        if moneyValue then
-            return moneyValue.Value
-        end
+        local moneyValue = leaderstats:FindFirstChild("Money") or leaderstats:FindFirstChild("Cash") or leaderstats:FindFirstChild("Dollars") or leaderstats:FindFirstChild("Points") or leaderstats:FindFirstChild("Coin")
+        if moneyValue then return moneyValue.Value end
     end
     return 0
 end
 
---// CẬP NHẬT TIỀN KIẾM ĐƯỢC
 local function updateEarnedMoney()
     local currentMoney = getBaseMoney()
     local earned = currentMoney - lastKnownMoney
-    if earned > 0 then
-        TotalEarned = TotalEarned + earned
-    end
+    if earned > 0 then TotalEarned = TotalEarned + earned end
     lastKnownMoney = currentMoney
 end
 
---// RESET KHI BẮT ĐẦU
 local function resetMoneyCounter()
     lastKnownMoney = getBaseMoney()
     TotalEarned = 0
 end
 
---// FORMAT THỜI GIAN
 local function formatTime(seconds)
     local hours = math.floor(seconds / 3600)
     local mins = math.floor((seconds % 3600) / 60)
@@ -76,46 +63,32 @@ local function formatTime(seconds)
     return string.format("%02d:%02d:%02d", hours, mins, secs)
 end
 
---// ĐƯA NGƯỜI CHƠI LÊN MẶT ĐẤT
 local function teleportToGround()
     local char = player.Character
     if not char then return end
-    
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local hum = char:FindFirstChild("Humanoid")
-    
     if hrp then
-        local groundPos = Vector3.new(hrp.Position.X, 5, hrp.Position.Z)
-        hrp.CFrame = CFrame.new(groundPos)
+        hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, 5, hrp.Position.Z))
         hrp.Velocity = Vector3.zero
     end
-    
     if hum then
         hum.PlatformStand = false
         hum.AutoRotate = true
         workspace.Gravity = 196.2
         hum.WalkSpeed = 16
     end
-    
     if char then
         for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end
+            if part:IsA("BasePart") then part.CanCollide = true end
         end
     end
 end
 
---// THÔNG BÁO LỖI
 local function showError(message)
-    pcall(function()
-        Remote:FireServer({["Event"] = "Notification", ["Message"] = message})
-    end)
-    
-    print("❌ " .. message)
+    pcall(function() Remote:FireServer({["Event"] = "Notification", ["Message"] = message}) end)
     Enabled = false
     teleportToGround()
-    
     local frame = PlayerGui:FindFirstChild("PIZZA_FARM_GUI")
     if frame then
         local button = frame:FindFirstChildOfClass("TextButton")
@@ -123,18 +96,114 @@ local function showError(message)
             button.Text = "▶ START"
             button.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
             local stroke = button.Parent:FindFirstChild("UIStroke")
-            if stroke then
-                stroke.Color = Color3.fromRGB(255, 100, 0)
-            end
+            if stroke then stroke.Color = Color3.fromRGB(255, 100, 0) end
         end
     end
-    
     IsBusy = false
     MaskEquipped = false
     StartTime = 0
 end
 
---// MUA SKI MASK
+--// ============ TÌM PIZZAJOB ============
+local function findPizzaInInventory()
+    local char = player.Character
+    local backpack = player:FindFirstChild("Backpack")
+    local starterGear = player:FindFirstChild("StarterGear")
+    
+    if char then
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "PizzaJob" then
+                return v, "character"
+            end
+        end
+    end
+    
+    if backpack then
+        for _, v in pairs(backpack:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "PizzaJob" then
+                return v, "backpack"
+            end
+        end
+    end
+    
+    if starterGear then
+        for _, v in pairs(starterGear:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "PizzaJob" then
+                return v, "startergear"
+            end
+        end
+    end
+    
+    return nil, nil
+end
+
+--// ============ ÉP BUỘC CẦM PIZZAJOB ============
+local function equipPizza()
+    if isEquipping then 
+        local waitStart = tick()
+        while isEquipping and tick() - waitStart < 1 do
+            task.wait(0.05)
+        end
+        if isEquipping then return false end
+    end
+    
+    isEquipping = true
+    
+    local char = player.Character
+    if not char then isEquipping = false return false end
+    local hum = char:FindFirstChild("Humanoid")
+    if not hum then isEquipping = false return false end
+    
+    -- Kiểm tra đã có PizzaJob trong tay chưa
+    for _, v in pairs(char:GetChildren()) do
+        if v:IsA("Tool") and v.Name == "PizzaJob" then
+            isEquipping = false
+            return true
+        end
+    end
+    
+    -- Tìm PizzaJob trong inventory
+    local pizza, location = findPizzaInInventory()
+    
+    if pizza then
+        -- KHÔNG bỏ Ski Mask xuống (giữ nguyên)
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("Tool") and v.Name ~= "PizzaJob" and v.Name ~= "Ski Mask" then
+                v.Parent = player:FindFirstChild("Backpack") or player
+            end
+        end
+        task.wait(0.05)
+        
+        -- Cầm PizzaJob lên
+        hum:EquipTool(pizza)
+        task.wait(0.1)
+        
+        -- Kiểm tra lại
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "PizzaJob" then
+                isEquipping = false
+                return true
+            end
+        end
+    end
+    
+    isEquipping = false
+    return false
+end
+
+--// ============ FORCE EQUIP PIZZA (LUÔN CỐ GẮNG) ============
+local function forceEquipPizza()
+    local maxAttempts = 8
+    for i = 1, maxAttempts do
+        if equipPizza() then
+            return true
+        end
+        task.wait(0.1)
+    end
+    return false
+end
+
+--// ============ MUA SKI MASK ============
 local function buySkiMask()
     local char = player.Character
     local backpack = player:FindFirstChild("Backpack")
@@ -142,7 +211,6 @@ local function buySkiMask()
     if char then
         for _, v in pairs(char:GetChildren()) do
             if v:IsA("Tool") and v.Name == "Ski Mask" then
-                print("✅ Đã có Ski Mask trong tay!")
                 return true
             end
         end
@@ -151,33 +219,24 @@ local function buySkiMask()
     if backpack then
         for _, v in pairs(backpack:GetChildren()) do
             if v:IsA("Tool") and v.Name == "Ski Mask" then
-                print("✅ Đã có Ski Mask trong backpack!")
                 local hum = char and char:FindFirstChild("Humanoid")
                 if hum then
                     hum:EquipTool(v)
                     task.wait(0.3)
-                    return true
                 end
+                return true
             end
         end
     end
     
-    print("🛒 Đang mua Ski Mask...")
-    
     local success = false
     pcall(function()
-        local args = {
-            [1] = {
-                ["Event"] = "PurchaseTool",
-                ["Tool"] = workspace.Map.Purchasable.Tool:FindFirstChild("Ski Mask")
-            }
-        }
-        Remote:FireServer(unpack(args))
+        Remote:FireServer({["Event"] = "PurchaseTool", ["Tool"] = workspace.Map.Purchasable.Tool:FindFirstChild("Ski Mask")})
         success = true
     end)
     
     if not success then
-        showError("Không thể mua Ski Mask! (Lỗi remote)")
+        showError("Không thể mua Ski Mask!")
         return false
     end
     
@@ -186,7 +245,6 @@ local function buySkiMask()
     if char then
         for _, v in pairs(char:GetChildren()) do
             if v:IsA("Tool") and v.Name == "Ski Mask" then
-                print("✅ Đã mua và đeo Ski Mask thành công!")
                 return true
             end
         end
@@ -195,13 +253,12 @@ local function buySkiMask()
     if backpack then
         for _, v in pairs(backpack:GetChildren()) do
             if v:IsA("Tool") and v.Name == "Ski Mask" then
-                print("✅ Đã mua Ski Mask thành công! Đang cầm lên...")
                 local hum = char and char:FindFirstChild("Humanoid")
                 if hum then
                     hum:EquipTool(v)
                     task.wait(0.3)
-                    return true
                 end
+                return true
             end
         end
     end
@@ -210,11 +267,9 @@ local function buySkiMask()
     return false
 end
 
---// KÍCH HOẠT MASK
 local function activateMask()
     local char = player.Character
     if not char then return false end
-    
     local mask = nil
     for _, v in pairs(char:GetChildren()) do
         if v:IsA("Tool") and v.Name == "Ski Mask" then
@@ -222,420 +277,364 @@ local function activateMask()
             break
         end
     end
-    
     if not mask then
-        showError("Không tìm thấy Ski Mask trong tay!")
+        showError("Không tìm thấy Ski Mask!")
         return false
     end
-    
-    print("🎭 Đang kích hoạt Ski Mask...")
-    pcall(function()
-        mask:Activate()
-    end)
+    pcall(function() mask:Activate() end)
     task.wait(0.5)
-    
-    print("✅ Đã kích hoạt Ski Mask xong!")
     return true
 end
 
-local CollectedMoneyList = {}
-
 local function getChar()
-	local char = player.Character or player.CharacterAdded:Wait()
-	local hum = char:WaitForChild("Humanoid")
-	local hrp = char:WaitForChild("HumanoidRootPart")
-	return char, hum, hrp
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    return char, hum, hrp
 end
 
 local function enableNoclip(char)
-	NoclipOn = true
-	for _, v in pairs(char:GetDescendants()) do
-		if v:IsA("BasePart") then
-			v.CanCollide = false
-		end
-	end
+    NoclipOn = true
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = false end
+    end
 end
 
 local function disableNoclip(char)
-	NoclipOn = false
-	for _, v in pairs(char:GetDescendants()) do
-		if v:IsA("BasePart") then
-			v.CanCollide = true
-		end
-	end
+    NoclipOn = false
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = true end
+    end
 end
 
 local function enableFreefall(hum)
-	hum.PlatformStand = true
-	workspace.Gravity = 0
+    hum.PlatformStand = true
+    workspace.Gravity = 0
 end
 
 local function disableFreefall(hum, hrp)
-	hum.PlatformStand = false
-	hum.AutoRotate = true
-	workspace.Gravity = 196.2
-	if hrp then
-		hrp.Velocity = Vector3.zero
-	end
-	hum.WalkSpeed = SPEED
+    hum.PlatformStand = false
+    hum.AutoRotate = true
+    workspace.Gravity = 196.2
+    if hrp then hrp.Velocity = Vector3.zero end
+    hum.WalkSpeed = SPEED
 end
 
 local function antiStuck(hrp)
-	hrp.Velocity = Vector3.new(150, 0, 0)
-	task.wait(0.2)
-	hrp.Velocity = Vector3.new(-150, 0, 0)
-	task.wait(0.2)
-	hrp.Velocity = Vector3.new(0, 0, 150)
-	task.wait(0.2)
-	hrp.Velocity = Vector3.new(0, 0, -150)
-	task.wait(0.2)
-	hrp.Velocity = Vector3.zero
+    hrp.Velocity = Vector3.new(150, 0, 0)
+    task.wait(0.2)
+    hrp.Velocity = Vector3.new(-150, 0, 0)
+    task.wait(0.2)
+    hrp.Velocity = Vector3.new(0, 0, 150)
+    task.wait(0.2)
+    hrp.Velocity = Vector3.new(0, 0, -150)
+    task.wait(0.2)
+    hrp.Velocity = Vector3.zero
 end
 
 local function getNewMoney()
-	local newMoney = {}
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("MeshPart") and #v.Name > 15 then
-			if not CollectedMoneyList[v.Name] then
-				table.insert(newMoney, v)
-			end
-		end
-	end
-	return newMoney
+    local newMoney = {}
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("MeshPart") and #v.Name > 15 and not CollectedMoneyList[v.Name] then
+            table.insert(newMoney, v)
+        end
+    end
+    return newMoney
 end
 
 local function collectMoney(money)
-	pcall(function()
-		local args = {
-			[1] = {
-				["Event"] = "CollectDollar",
-				["Dollar"] = money
-			}
-		}
-		Remote:FireServer(unpack(args))
-		CollectedMoneyList[money.Name] = true
-	end)
+    pcall(function()
+        Remote:FireServer({["Event"] = "CollectDollar", ["Dollar"] = money})
+        CollectedMoneyList[money.Name] = true
+    end)
 end
 
 local function collectAllNewMoney()
-	for _, money in pairs(getNewMoney()) do
-		collectMoney(money)
-	end
+    for _, money in pairs(getNewMoney()) do
+        collectMoney(money)
+    end
 end
 
 local function calculateUndergroundY(zoneY)
-	return zoneY - HEAD_OFFSET
+    return zoneY - HEAD_OFFSET
 end
 
---// FLY TO TARGET (CÓ CHỐNG LAG + VĂNG - DỪNG HẲN 2S)
+--// FLY TO TARGET
 local function flyToTarget(targetPos, hum, hrp)
-	local startTime = tick()
-	local lastPos = hrp.Position
-	local stuckTime = 0
-	local isWaiting = false
-	local waitStartTime = 0
-	local resetCount = 0
-	
-	if not hum.PlatformStand then
-		enableFreefall(hum)
-	end
-	
-	if UndergroundY then
-		hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
-		hrp.Velocity = Vector3.zero
-	end
-	
-	while Enabled and hrp and hrp.Parent do
-		local currentPos = hrp.Position
-		local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
-		local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
-		local dist = (flatCurrent - flatTarget).Magnitude
-		
-		-- Nếu đã tới nơi thì thoát
-		if dist <= 1.5 then 
-			print("✅ Đã tới điểm giao!")
-			break 
-		end
-		
-		-- THỜI GIAN CHỜ KHI BỊ LAG/VĂNG (SAU 5S)
-		if tick() - startTime > 5 and not isWaiting then
-			print("⏳ Quá 5s chưa tới! Dừng tại chỗ 2 giây...")
-			isWaiting = true
-			waitStartTime = tick()
-			-- ÉP DỪNG HẲN
-			hrp.Velocity = Vector3.zero
-			-- Giữ nguyên vị trí
-			if hrp and UndergroundY then
-				hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
-			end
-		end
-		
-		-- ĐANG CHỜ - KHÔNG CHO DI CHUYỂN
-		if isWaiting then
-			-- ÉP DỪNG HẲN TẠI CHỖ
-			hrp.Velocity = Vector3.zero
-			if hrp and UndergroundY then
-				hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
-			end
-			
-			-- Chờ đủ 2 giây
-			if tick() - waitStartTime >= 2 then
-				print("✅ Tiếp tục bay...")
-				isWaiting = false
-				startTime = tick() -- Reset lại thời gian
-				resetCount = resetCount + 1
-			end
-			task.wait()
-			continue
-		end
-		
-		-- Quá 20 giây tổng hoặc reset quá 3 lần => thoát
-		if tick() - startTime > 20 or resetCount > 3 then 
-			print("⚠️ Không thể tới điểm giao sau nhiều lần thử!")
-			break 
-		end
-		
-		-- Nếu bị văng quá xa (cách target > 200) thì reset về gần
-		if dist > 200 then
-			print("⚠️ Bị văng quá xa! Đưa về gần target...")
-			hrp.CFrame = CFrame.new(targetPos.X, UndergroundY, targetPos.Z)
-			hrp.Velocity = Vector3.zero
-			startTime = tick()
-			task.wait(0.5)
-			continue
-		end
-		
-		-- TÍNH HƯỚNG BAY
-		local direction = (flatTarget - flatCurrent).Unit
-		
-		-- BAY TỚI
-		hrp.Velocity = Vector3.new(
-			direction.X * FLY_SPEED,
-			0,
-			direction.Z * FLY_SPEED
-		)
-		
-		if math.abs(hrp.Position.Y - UndergroundY) > 0.5 then
-			hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
-			hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-		end
-		
-		hum.AutoRotate = false
-		if direction.Magnitude > 0.01 then
-			hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(
-				hrp.Position.X + direction.X,
-				hrp.Position.Y,
-				hrp.Position.Z + direction.Z
-			))
-		end
-		
-		-- CHỐNG STUCK
-		if (hrp.Position - lastPos).Magnitude < 0.5 then
-			stuckTime = stuckTime + 0.1
-			if stuckTime >= 2 then
-				antiStuck(hrp)
-				stuckTime = 0
-			end
-		else
-			stuckTime = 0
-		end
-		lastPos = hrp.Position
-		
-		task.wait()
-	end
-	
-	hrp.Velocity = Vector3.zero
-	
-	if hrp and hrp.Parent and UndergroundY then
-		hrp.CFrame = CFrame.new(targetPos.X, UndergroundY, targetPos.Z)
-		hrp.Velocity = Vector3.zero
-	end
+    local startTime = tick()
+    local lastPos = hrp.Position
+    local stuckTime = 0
+    local isWaiting = false
+    local waitStartTime = 0
+    local resetCount = 0
+    
+    if not hum.PlatformStand then enableFreefall(hum) end
+    if UndergroundY then
+        hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+        hrp.Velocity = Vector3.zero
+    end
+    
+    while Enabled and hrp and hrp.Parent do
+        local currentPos = hrp.Position
+        local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
+        local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
+        local dist = (flatCurrent - flatTarget).Magnitude
+        
+        if dist <= 1.5 then break end
+        
+        if tick() - startTime > 5 and not isWaiting then
+            isWaiting = true
+            waitStartTime = tick()
+            hrp.Velocity = Vector3.zero
+            if hrp and UndergroundY then
+                hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+            end
+        end
+        
+        if isWaiting then
+            hrp.Velocity = Vector3.zero
+            if hrp and UndergroundY then
+                hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+            end
+            if tick() - waitStartTime >= 2 then
+                isWaiting = false
+                startTime = tick()
+                resetCount = resetCount + 1
+            end
+            task.wait()
+            continue
+        end
+        
+        if tick() - startTime > 20 or resetCount > 3 then break end
+        
+        if dist > 200 then
+            hrp.CFrame = CFrame.new(targetPos.X, UndergroundY, targetPos.Z)
+            hrp.Velocity = Vector3.zero
+            startTime = tick()
+            task.wait(0.5)
+            continue
+        end
+        
+        local direction = (flatTarget - flatCurrent).Unit
+        hrp.Velocity = Vector3.new(direction.X * FLY_SPEED, 0, direction.Z * FLY_SPEED)
+        
+        if math.abs(hrp.Position.Y - UndergroundY) > 0.5 then
+            hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+        end
+        
+        hum.AutoRotate = false
+        if direction.Magnitude > 0.01 then
+            hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(hrp.Position.X + direction.X, hrp.Position.Y, hrp.Position.Z + direction.Z))
+        end
+        
+        if (hrp.Position - lastPos).Magnitude < 0.5 then
+            stuckTime = stuckTime + 0.1
+            if stuckTime >= 2 then
+                antiStuck(hrp)
+                stuckTime = 0
+            end
+        else
+            stuckTime = 0
+        end
+        lastPos = hrp.Position
+        task.wait()
+    end
+    
+    hrp.Velocity = Vector3.zero
+    if hrp and hrp.Parent and UndergroundY then
+        hrp.CFrame = CFrame.new(targetPos.X, UndergroundY, hrp.Position.Z)
+        hrp.Velocity = Vector3.zero
+    end
 end
 
 local function triggerDelivery(prompt, hrp)
-	if hrp and hrp.Parent then
-		hrp.Velocity = Vector3.zero
-	end
-	
-	pcall(function()
-		prompt:InputHoldBegin()
-		task.wait(0.15)
-		prompt:InputHoldEnd()
-	end)
+    if hrp and hrp.Parent then hrp.Velocity = Vector3.zero end
+    pcall(function()
+        prompt:InputHoldBegin()
+        task.wait(0.15)
+        prompt:InputHoldEnd()
+    end)
 end
 
 local function findDelivery()
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("ProximityPrompt") and v.ActionText == "Deliver" then
-			return v
-		end
-	end
-	return nil
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ProximityPrompt") and v.ActionText == "Deliver" then
+            return v
+        end
+    end
+    return nil
 end
 
 local function startJob()
-	pcall(function()
-		Remote:FireServer({["Event"] = "StartJob", ["Job"] = "Pizza"})
-	end)
+    pcall(function() Remote:FireServer({["Event"] = "StartJob", ["Job"] = "Pizza"}) end)
 end
 
-local function completeJob()
-	pcall(function()
-		Remote:FireServer({["Event"] = "CompletedJob", ["Job"] = "Pizza"})
-	end)
+--// ============ COMPLETEJOB + FORCE EQUIP PIZZA ============
+local function completeJobAndForceEquipPizza()
+    -- Gửi CompleteJob
+    pcall(function() Remote:FireServer({["Event"] = "CompletedJob", ["Job"] = "Pizza"}) end)
+    
+    -- LUÔN CỐ GẮNG CẦM PIZZAJOB (bất kể mask)
+    task.wait(0.05)
+    forceEquipPizza()
 end
+--// ===============================================================
 
 function farm()
-	while Enabled do
-		if IsBusy then 
-			task.wait(0.3)
-			continue 
-		end
-		IsBusy = true
-		
-		if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-			task.wait(1)
-			IsBusy = false
-			continue
-		end
-		
-		startJob()
-		task.wait(0.5)
-		
-		local prompt = nil
-		local findStart = tick()
-		repeat
-			if not Enabled then 
-				IsBusy = false
-				return 
-			end
-			prompt = findDelivery()
-			if prompt then break end
-			task.wait(0.2)
-		until tick() - findStart > 5
-		
-		if not prompt then
-			IsBusy = false
-			task.wait(0.5)
-			continue
-		end
-		
-		local char, hum, hrp = getChar()
-		if not char or not hum or not hrp then
-			IsBusy = false
-			task.wait(1)
-			continue
-		end
-		
-		local targetPos = prompt.Parent.Position
-		
-		if not UndergroundY then
-			UndergroundY = calculateUndergroundY(targetPos.Y)
-		end
-		
-		enableNoclip(char)
-		enableFreefall(hum)
-		
-		hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
-		hrp.Velocity = Vector3.zero
-		
-		flyToTarget(targetPos, hum, hrp)
-		
-		if Enabled and player.Character and hrp and hrp.Parent then
-			triggerDelivery(prompt, hrp)
-			task.wait(0.3)
-			
-			local moneyFound = false
-			
-			for i = 1, 3 do
-				if not Enabled then break end
-				
-				completeJob()
-				task.wait(0.2)
-				
-				local newMoney = getNewMoney()
-				if #newMoney > 0 then
-					moneyFound = true
-					for _, money in pairs(newMoney) do
-						collectMoney(money)
-					end
-					break
-				end
-			end
-			
-			if Enabled then
-				startJob()
-			end
-			
-			collectAllNewMoney()
-			updateEarnedMoney()
-			task.wait(0.3)
-		end
-		
-		IsBusy = false
-		task.wait(0.1)
-	end
+    while Enabled do
+        if IsBusy then task.wait(0.3) continue end
+        IsBusy = true
+        
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            task.wait(1)
+            IsBusy = false
+            continue
+        end
+        
+        -- LUÔN CẦM PIZZAJOB (không kiểm tra mask)
+        forceEquipPizza()
+        
+        startJob()
+        task.wait(0.5)
+        
+        local prompt = nil
+        local findStart = tick()
+        repeat
+            if not Enabled then IsBusy = false return end
+            prompt = findDelivery()
+            if prompt then break end
+            task.wait(0.2)
+        until tick() - findStart > 5
+        
+        if not prompt then
+            IsBusy = false
+            task.wait(0.5)
+            continue
+        end
+        
+        local char, hum, hrp = getChar()
+        if not char or not hum or not hrp then
+            IsBusy = false
+            task.wait(1)
+            continue
+        end
+        
+        local targetPos = prompt.Parent.Position
+        if not UndergroundY then UndergroundY = calculateUndergroundY(targetPos.Y) end
+        
+        enableNoclip(char)
+        enableFreefall(hum)
+        hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+        hrp.Velocity = Vector3.zero
+        
+        flyToTarget(targetPos, hum, hrp)
+        
+        if Enabled and player.Character and hrp and hrp.Parent then
+            triggerDelivery(prompt, hrp)
+            task.wait(0.3)
+            
+            for i = 1, 3 do
+                if not Enabled then break end
+                
+                -- Complete + Force Equip Pizza
+                completeJobAndForceEquipPizza()
+                task.wait(0.2)
+                
+                local newMoney = getNewMoney()
+                if #newMoney > 0 then
+                    for _, money in pairs(newMoney) do
+                        collectMoney(money)
+                    end
+                    break
+                end
+            end
+            
+            if Enabled then
+                startJob()
+                -- LUÔN cầm PizzaJob
+                forceEquipPizza()
+            end
+            
+            collectAllNewMoney()
+            updateEarnedMoney()
+            task.wait(0.3)
+        end
+        
+        IsBusy = false
+        task.wait(0.1)
+    end
 end
 
---// KHỞI TẠO MASK TRƯỚC KHI FARM
 local function initMaskAndFarm()
-    print("🎭 Kiểm tra Ski Mask...")
-    
     local success = buySkiMask()
-    if not success then
-        return
+    if not success then 
+        -- Vẫn farm được dù không có mask
+        MaskEquipped = false
+        farm()
+        return 
     end
-    
     success = activateMask()
     if not success then
+        MaskEquipped = false
+        farm()
         return
     end
-    
     MaskEquipped = true
-    print("✅ Đã sẵn sàng! Bắt đầu farm Pizza...")
-    
     farm()
 end
 
+--// HEARTBEAT - DUY TRÌ PIZZAJOB LIÊN TỤC
 RunService.Heartbeat:Connect(function()
-	if not Enabled then return end
-	local char = player.Character
-	if not char then return end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	
-	if hum and not hum.PlatformStand then
-		if hum.WalkSpeed ~= SPEED then
-			hum.WalkSpeed = SPEED
-		end
-	end
-	
-	if NoclipOn then
-		enableNoclip(char)
-	end
-	
-	if Enabled and hrp and UndergroundY then
-		if math.abs(hrp.Position.Y - UndergroundY) > 2 then
-			hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
-			hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-		end
-	end
+    if not Enabled then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    
+    if hum and not hum.PlatformStand then
+        if hum.WalkSpeed ~= SPEED then hum.WalkSpeed = SPEED end
+    end
+    
+    if NoclipOn then enableNoclip(char) end
+    
+    if Enabled and hrp and UndergroundY then
+        if math.abs(hrp.Position.Y - UndergroundY) > 2 then
+            hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+        end
+    end
+    
+    -- LUÔN DUY TRÌ PIZZAJOB (bỏ kiểm tra MaskEquipped)
+    if Enabled and not isEquipping then
+        local char = player.Character
+        if char then
+            local hasPizza = false
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("Tool") and v.Name == "PizzaJob" then
+                    hasPizza = true
+                    break
+                end
+            end
+            if not hasPizza then
+                task.spawn(function() forceEquipPizza() end)
+            end
+        end
+    end
 end)
 
 player.CharacterAdded:Connect(function(char)
-	task.wait(1)
-	if Enabled then
-		CollectedMoneyList = {}
-		UndergroundY = nil
-		IsBusy = false
-		MaskEquipped = false
-		task.spawn(function()
-			pcall(function() initMaskAndFarm() end)
-		end)
-	end
+    task.wait(1)
+    if Enabled then
+        CollectedMoneyList = {}
+        UndergroundY = nil
+        IsBusy = false
+        MaskEquipped = false
+        task.spawn(function() pcall(function() initMaskAndFarm() end) end)
+    end
 end)
 
---// ==================== GUI ====================
+--// GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "PIZZA_FARM_GUI"
 gui.ResetOnSpawn = false
@@ -651,7 +650,6 @@ frame.Active = true
 frame.Parent = gui
 
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-
 local stroke = Instance.new("UIStroke")
 stroke.Color = Color3.fromRGB(255, 100, 0)
 stroke.Thickness = 2
@@ -693,12 +691,10 @@ timerLabel.TextSize = 12
 timerLabel.Text = "⏱ 00:00:00"
 timerLabel.Parent = frame
 
---// UPDATE TIMER
 task.spawn(function()
     while true do
         if Enabled then
-            local elapsed = TotalTime + (os.time() - StartTime)
-            timerLabel.Text = "⏱ " .. formatTime(elapsed)
+            timerLabel.Text = "⏱ " .. formatTime(TotalTime + (os.time() - StartTime))
         else
             timerLabel.Text = "⏱ " .. formatTime(TotalTime)
         end
@@ -706,81 +702,68 @@ task.spawn(function()
     end
 end)
 
---// UPDATE MONEY DISPLAY
 task.spawn(function()
-	while true do
-		moneyLabel.Text = "💰 " .. TotalEarned
-		task.wait(0.3)
-	end
+    while true do
+        moneyLabel.Text = "💰 " .. TotalEarned
+        task.wait(0.3)
+    end
 end)
 
---// DRAG
 local dragging, dragInput, dragStart, startPos
 
 frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-		dragStart = input.Position
-		startPos = frame.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
 end)
 
 frame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-		dragInput = input
-	end
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
 end)
 
 UIS.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - dragStart
-		frame.Position = UDim2.new(
-			startPos.X.Scale,
-			startPos.X.Offset + delta.X,
-			startPos.Y.Scale,
-			startPos.Y.Offset + delta.Y
-		)
-	end
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 end)
 
---// TOGGLE
 button.MouseButton1Click:Connect(function()
-	if Enabled then
-		Enabled = false
-		button.Text = "▶ START"
-		button.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
-		stroke.Color = Color3.fromRGB(255, 100, 0)
-		IsBusy = false
-		TotalTime = TotalTime + (os.time() - StartTime)
-		StartTime = 0
-		
-		local char = player.Character
-		if char then 
-			disableNoclip(char)
-			local hum = char:FindFirstChildOfClass("Humanoid")
-			local hrp = char:FindFirstChild("HumanoidRootPart")
-			if hum and hrp then
-				disableFreefall(hum, hrp)
-			end
-		end
-	else
-		Enabled = true
-		button.Text = "⏸ STOP"
-		button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-		stroke.Color = Color3.fromRGB(0, 255, 100)
-		
-		CollectedMoneyList = {}
-		UndergroundY = nil
-		IsBusy = false
-		MaskEquipped = false
-		resetMoneyCounter()
-		StartTime = os.time()
-		
-		task.spawn(initMaskAndFarm)
-	end
+    if Enabled then
+        Enabled = false
+        button.Text = "▶ START"
+        button.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+        stroke.Color = Color3.fromRGB(255, 100, 0)
+        IsBusy = false
+        TotalTime = TotalTime + (os.time() - StartTime)
+        StartTime = 0
+        local char = player.Character
+        if char then
+            disableNoclip(char)
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hum and hrp then disableFreefall(hum, hrp) end
+        end
+    else
+        Enabled = true
+        button.Text = "⏸ STOP"
+        button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        stroke.Color = Color3.fromRGB(0, 255, 100)
+        CollectedMoneyList = {}
+        UndergroundY = nil
+        IsBusy = false
+        MaskEquipped = false
+        resetMoneyCounter()
+        StartTime = os.time()
+        task.spawn(initMaskAndFarm)
+    end
 end)
