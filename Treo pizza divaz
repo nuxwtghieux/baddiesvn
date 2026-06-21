@@ -694,38 +694,3 @@ end)
 
 UIS.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-button.MouseButton1Click:Connect(function()
-    if Enabled then
-        Enabled = false
-        button.Text = "▶ START"
-        button.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
-        stroke.Color = Color3.fromRGB(255, 100, 0)
-        IsBusy = false
-        TotalTime = TotalTime + (os.time() - StartTime)
-        StartTime = 0
-        local char = player.Character
-        if char then
-            disableNoclip(char)
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if hum and hrp then disableFreefall(hum, hrp) end
-        end
-    else
-        Enabled = true
-        button.Text = "⏸ STOP"
-        button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        stroke.Color = Color3.fromRGB(0, 255, 100)
-        CollectedMoneyList = {}
-        UndergroundY = nil
-        IsBusy = false
-        MaskEquipped = false
-        resetMoneyCounter()
-        StartTime = os.time()
-        task.spawn(initMaskAndFarm)
-    end
-end)
