@@ -463,7 +463,7 @@ end
 
 local function completeJobAndForceEquipPizza()
     pcall(function() Remote:FireServer({["Event"] = "CompletedJob", ["Job"] = "Pizza"}) end)
-    task.wait(0.085)
+    task.wait(0.09)
     forceEquipPizza()
 end
 
