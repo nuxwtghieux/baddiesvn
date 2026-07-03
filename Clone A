@@ -1,4 +1,4 @@
---code số 11: CLONE A (CHỦ) - FIX TẮT BAY KHI TỚI NƠI + QUÉT TARGET NGAY
+--code số 13: CLONE A (CHỦ) - SỬA SCROLL TARGET LIST
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -429,12 +429,19 @@ targetCorner.CornerRadius = UDim.new(0, 8)
 local scrollFrame = Instance.new("ScrollingFrame")
 scrollFrame.Size = UDim2.new(1, 0, 1, -130)
 scrollFrame.Position = UDim2.new(0, 0, 0, 68)
-scrollFrame.BackgroundTransparency = 1
+scrollFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+scrollFrame.BackgroundTransparency = 0.5
 scrollFrame.BorderSizePixel = 0
 scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarThickness = 6
 scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 0)
+scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+scrollFrame.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+scrollFrame.ClipsDescendants = true
 scrollFrame.Parent = contentFrame
+
+local scrollCorner = Instance.new("UICorner", scrollFrame)
+scrollCorner.CornerRadius = UDim.new(0, 8)
 
 local listLayout = Instance.new("UIListLayout")
 listLayout.Padding = UDim.new(0, 4)
@@ -442,12 +449,17 @@ listLayout.SortOrder = Enum.SortOrder.Name
 listLayout.Parent = scrollFrame
 
 local padding = Instance.new("UIPadding")
-padding.PaddingRight = UDim.new(0, 6)
+padding.PaddingTop = UDim.new(0, 4)
+padding.PaddingBottom = UDim.new(0, 4)
+padding.PaddingLeft = UDim.new(0, 4)
+padding.PaddingRight = UDim.new(0, 4)
 padding.Parent = scrollFrame
 
-scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 4)
-end)
+local function updateCanvasSize()
+    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 8)
+end
+
+listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
 
 local startBtn = Instance.new("TextButton")
 startBtn.Size = UDim2.new(1, 0, 0, 36)
@@ -492,10 +504,12 @@ local function refreshPlayerList()
         if v:IsA("Frame") then v:Destroy() end
     end
     local players = Players:GetPlayers()
+    local count = 0
     for _, plr in pairs(players) do
         if plr ~= player then
+            count = count + 1
             local playerFrame = Instance.new("Frame")
-            playerFrame.Size = UDim2.new(1, 0, 0, 38)
+            playerFrame.Size = UDim2.new(1, -8, 0, 38)
             playerFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
             playerFrame.BackgroundTransparency = 0.2
             playerFrame.BorderSizePixel = 0
@@ -509,7 +523,7 @@ local function refreshPlayerList()
                 pfStroke.Transparency = 0.3
             end
             local nameLabel = Instance.new("TextLabel")
-            nameLabel.Size = UDim2.new(0, 120, 1, 0)
+            nameLabel.Size = UDim2.new(0, 130, 1, 0)
             nameLabel.Position = UDim2.new(0, 8, 0, 0)
             nameLabel.BackgroundTransparency = 1
             nameLabel.Font = Enum.Font.GothamBold
@@ -520,8 +534,8 @@ local function refreshPlayerList()
             nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
             nameLabel.Parent = playerFrame
             local selectBtn = Instance.new("TextButton")
-            selectBtn.Size = UDim2.new(0, 50, 0, 26)
-            selectBtn.Position = UDim2.new(1, -58, 0, 6)
+            selectBtn.Size = UDim2.new(0, 55, 0, 26)
+            selectBtn.Position = UDim2.new(1, -63, 0, 6)
             selectBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
             selectBtn.BackgroundTransparency = 0.3
             selectBtn.Font = Enum.Font.GothamBold
@@ -539,7 +553,17 @@ local function refreshPlayerList()
             end)
         end
     end
-    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 4)
+    if count == 0 then
+        local noPlayerLabel = Instance.new("TextLabel")
+        noPlayerLabel.Size = UDim2.new(1, -8, 0, 30)
+        noPlayerLabel.BackgroundTransparency = 1
+        noPlayerLabel.Font = Enum.Font.Gotham
+        noPlayerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        noPlayerLabel.TextSize = 12
+        noPlayerLabel.Text = "Không có người chơi nào"
+        noPlayerLabel.Parent = scrollFrame
+    end
+    updateCanvasSize()
 end
 
 copyBtn.MouseButton1Click:Connect(function()
