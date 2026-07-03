@@ -1,4 +1,4 @@
---code số 13: CLONE A (CHỦ) - SỬA SCROLL TARGET LIST
+--code số 16: CLONE A (CHỦ) - SỬA REMOTE HIT CÓ KEY + ÁP SÁT + BỎ QUA THÔNG BÁO
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -27,6 +27,7 @@ local ScriptEnabled = false
 local IsAtHome = false
 local IsFlying = false
 local SCAN_RANGE = 50
+local HIT_KEY = "885237de-6b1e-4f5b-a4ab-8a4f2b6ef56f"
 
 local function getChar()
     local char = player.Character or player.CharacterAdded:Wait()
@@ -174,15 +175,51 @@ local function faceTarget()
     hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(TargetHRP.Position.X, hrp.Position.Y, TargetHRP.Position.Z))
 end
 
+local function snapToTarget()
+    if not TargetHRP or not TargetHRP.Parent then return false end
+    local char = player.Character
+    if not char then return false end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    local hum = char:FindFirstChild("Humanoid")
+    local targetPos = TargetHRP.Position
+    local dist = (hrp.Position - targetPos).Magnitude
+    if dist > 5 then
+        hum.WalkSpeed = 50
+        hum:MoveTo(targetPos)
+        local startTime = tick()
+        while (hrp.Position - targetPos).Magnitude > 3.5 and tick() - startTime < 2 do
+            if not IsFighting or not ScriptEnabled then break end
+            if not TargetHRP or not TargetHRP.Parent then break end
+            targetPos = TargetHRP.Position
+            hum:MoveTo(targetPos)
+            task.wait(0.05)
+        end
+        hum:MoveTo(Vector3.zero)
+    end
+    if TargetHRP and TargetHRP.Parent and (hrp.Position - TargetHRP.Position).Magnitude > 3.5 then
+        hrp.CFrame = CFrame.new(TargetHRP.Position.X, TargetHRP.Position.Y + 2.5, TargetHRP.Position.Z - 2)
+        hrp.Velocity = Vector3.zero
+    end
+    faceTarget()
+    return true
+end
+
 local function hitTarget()
     pcall(function()
-        Remote:FireServer({["Event"] = "Hit", ["ClientHitbox"] = {}})
+        Remote:FireServer({
+            ["Key"] = HIT_KEY,
+            ["Event"] = "Hit",
+            ["ClientHitbox"] = {}
+        })
     end)
 end
 
 local function stompTarget()
     pcall(function()
-        Remote:FireServer({["Event"] = "Stomp"})
+        Remote:FireServer({
+            ["Event"] = "Stomp"
+        })
     end)
 end
 
@@ -196,63 +233,74 @@ local function standOnTarget()
     hrp.Velocity = Vector3.zero
 end
 
+local function chaseTarget()
+    local char, hum, hrp = getChar()
+    hum.WalkSpeed = 40
+    local startTime = tick()
+    while hrp and hrp.Parent and TargetHRP and TargetHRP.Parent and IsFighting and ScriptEnabled do
+        local dist = (hrp.Position - TargetHRP.Position).Magnitude
+        if dist <= 3 then break end
+        if tick() - startTime > 3 then
+            if dist > 15 then
+                enableFreefall(hum)
+                local targetPos = TargetHRP.Position
+                flyToTarget(targetPos, hum, hrp)
+                landSafely(targetPos, hum, hrp)
+                hum.WalkSpeed = 40
+            end
+            startTime = tick()
+        end
+        faceTarget()
+        hum:MoveTo(TargetHRP.Position)
+        task.wait(0.05)
+    end
+    hum:MoveTo(Vector3.zero)
+end
+
 local function fightLoop()
     while TargetPlayer and TargetPlayer.Parent and IsFighting and ScriptEnabled do
         if not TargetPlayer.Character or not TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            task.wait(0.3)
+            task.wait(0.2)
             continue
         end
         TargetHRP = TargetPlayer.Character.HumanoidRootPart
         TargetHumanoid = TargetPlayer.Character:FindFirstChild("Humanoid")
-        if not TargetHumanoid then task.wait(0.3) continue end
+        if not TargetHumanoid then task.wait(0.2) continue end
         local hp = TargetHumanoid.Health
         if hp <= 0 then break end
-        faceTarget()
+        snapToTarget()
         if hp > 2 then
             for i = 1, 5 do
                 if not IsFighting or not ScriptEnabled then break end
                 if not TargetHumanoid or not TargetHumanoid.Parent then break end
                 if TargetHumanoid.Health <= 2 then break end
+                snapToTarget()
                 hitTarget()
                 task.wait(0.05)
             end
-            task.wait(0.1)
+            task.wait(0.08)
         else
             standOnTarget()
-            task.wait(0.1)
+            task.wait(0.08)
             stompTarget()
-            task.wait(0.1)
+            task.wait(0.08)
             stompTarget()
-            task.wait(0.1)
+            task.wait(0.08)
             hitTarget()
             task.wait(0.05)
             hitTarget()
-            task.wait(0.2)
+            task.wait(0.15)
             if TargetHumanoid and TargetHumanoid.Parent and TargetHumanoid.Health > 0 then
                 standOnTarget()
                 stompTarget()
-                task.wait(0.1)
+                task.wait(0.08)
                 stompTarget()
-                task.wait(0.2)
+                task.wait(0.15)
             end
         end
-        task.wait(0.05)
+        task.wait(0.03)
     end
     IsFighting = false
-end
-
-local function moveToTargetWalk()
-    local char, hum, hrp = getChar()
-    hum.WalkSpeed = 30
-    local startTime = tick()
-    while hrp and hrp.Parent and TargetHRP and TargetHRP.Parent and IsFighting do
-        local dist = (hrp.Position - TargetHRP.Position).Magnitude
-        if dist <= 5 then break end
-        if tick() - startTime > 8 then break end
-        hum:MoveTo(TargetHRP.Position)
-        task.wait(0.1)
-    end
-    hum:MoveTo(Vector3.zero)
 end
 
 local function attackTarget(target)
@@ -265,7 +313,7 @@ local function attackTarget(target)
     local targetPos = target.Character.HumanoidRootPart.Position
     flyToTarget(targetPos, hum, hrp)
     landSafely(targetPos, hum, hrp)
-    moveToTargetWalk()
+    chaseTarget()
     fightLoop()
     IsFighting = false
     updateTargetInfo()
@@ -280,7 +328,7 @@ local function mainLoop()
                 attackTarget(target)
             end
         end
-        task.wait(0.5)
+        task.wait(0.3)
     end
 end
 
