@@ -1,0 +1,639 @@
+--code số 10: CLONE A (CHỦ) - BAY NGẦM DƯỚI ĐẤT CHUẨN GỐC + QUÉT GẦN + KHÔNG TELEPORT
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+pcall(function()
+    local old = PlayerGui:FindFirstChild("CLONE_A_GUI")
+    if old then old:Destroy() end
+end)
+
+local Remote = ReplicatedStorage:WaitForChild("Event")
+local SPEED = 16
+local FLY_SPEED = 200
+local HEAD_OFFSET = 8
+local NoclipOn = false
+local UndergroundY = nil
+local HOME_POS = Vector3.new(563.2, 3.9, -20.8)
+local TargetPlayer = nil
+local TargetHRP = nil
+local TargetHumanoid = nil
+local IsFighting = false
+local IsReturning = false
+local ScriptEnabled = false
+local IsAtHome = false
+local SCAN_RANGE = 50
+
+local function getChar()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    return char, hum, hrp
+end
+
+local function enableNoclip(char)
+    NoclipOn = true
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = false end
+    end
+end
+
+local function disableNoclip(char)
+    NoclipOn = false
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = true end
+    end
+end
+
+local function enableFreefall(hum)
+    hum.PlatformStand = true
+    workspace.Gravity = 0
+end
+
+local function disableFreefall(hum, hrp)
+    hum.PlatformStand = false
+    hum.AutoRotate = true
+    workspace.Gravity = 196.2
+    if hrp then hrp.Velocity = Vector3.zero end
+    hum.WalkSpeed = SPEED
+end
+
+local function calculateUndergroundY(zoneY)
+    return zoneY - HEAD_OFFSET
+end
+
+-- BAY NGẦM DƯỚI ĐẤT CHUẨN GỐC - KHÔNG TELEPORT
+local function flyToTarget(targetPos, hum, hrp)
+    local lastPos = hrp.Position
+    local stuckTime = 0
+    if not hum.PlatformStand then enableFreefall(hum) end
+    enableNoclip(player.Character)
+    local flyY = calculateUndergroundY(targetPos.Y)
+    UndergroundY = flyY
+    hrp.CFrame = CFrame.new(hrp.Position.X, flyY, hrp.Position.Z)
+    hrp.Velocity = Vector3.zero
+    while ScriptEnabled and hrp and hrp.Parent do
+        local currentPos = hrp.Position
+        local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
+        local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
+        local dist = (flatCurrent - flatTarget).Magnitude
+        if dist <= 3 then
+            hrp.CFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
+            hrp.Velocity = Vector3.zero
+            break
+        end
+        local direction = (flatTarget - flatCurrent).Unit
+        hrp.Velocity = Vector3.new(direction.X * FLY_SPEED, 0, direction.Z * FLY_SPEED)
+        if math.abs(hrp.Position.Y - flyY) > 0.5 then
+            hrp.CFrame = CFrame.new(hrp.Position.X, flyY, hrp.Position.Z)
+        end
+        hum.AutoRotate = false
+        if direction.Magnitude > 0.01 then
+            hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(hrp.Position.X + direction.X, hrp.Position.Y, hrp.Position.Z + direction.Z))
+        end
+        if (hrp.Position - lastPos).Magnitude < 0.5 then
+            stuckTime = stuckTime + 0.1
+            if stuckTime >= 1.5 then
+                hrp.CFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
+                hrp.Velocity = Vector3.zero
+                stuckTime = 0
+            end
+        else
+            stuckTime = 0
+        end
+        lastPos = hrp.Position
+        task.wait()
+    end
+    hrp.Velocity = Vector3.zero
+    if hrp and hrp.Parent then
+        hrp.CFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
+        hrp.Velocity = Vector3.zero
+    end
+end
+
+local function landSafely(targetPos, hum, hrp)
+    if not hrp or not hrp.Parent then return end
+    disableFreefall(hum, hrp)
+    task.wait(0.1)
+    hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z)
+    hrp.Velocity = Vector3.zero
+    task.wait(0.2)
+    disableNoclip(player.Character)
+    hum.WalkSpeed = SPEED
+end
+
+local function goHome()
+    IsReturning = true
+    IsFighting = false
+    IsAtHome = false
+    local char, hum, hrp = getChar()
+    enableFreefall(hum)
+    flyToTarget(HOME_POS, hum, hrp)
+    landSafely(HOME_POS, hum, hrp)
+    UndergroundY = nil
+    IsReturning = false
+    IsAtHome = true
+end
+
+local function scanForTarget()
+    if not IsAtHome then return nil end
+    local char = player.Character
+    if not char then return nil end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+    if TargetPlayer and TargetPlayer.Parent and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local targetHrp = TargetPlayer.Character.HumanoidRootPart
+        local dist = (hrp.Position - targetHrp.Position).Magnitude
+        if dist <= SCAN_RANGE then
+            return TargetPlayer
+        end
+    end
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") then
+            local targetHrp = plr.Character.HumanoidRootPart
+            local targetHum = plr.Character.Humanoid
+            if targetHum.Health > 0 then
+                local dist = (hrp.Position - targetHrp.Position).Magnitude
+                if dist <= SCAN_RANGE then
+                    return plr
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function faceTarget()
+    if not TargetHRP or not TargetHRP.Parent then return end
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then hum.AutoRotate = false end
+    hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(TargetHRP.Position.X, hrp.Position.Y, TargetHRP.Position.Z))
+end
+
+local function hitTarget()
+    pcall(function()
+        Remote:FireServer({["Event"] = "Hit", ["ClientHitbox"] = {}})
+    end)
+end
+
+local function stompTarget()
+    pcall(function()
+        Remote:FireServer({["Event"] = "Stomp"})
+    end)
+end
+
+local function standOnTarget()
+    if not TargetHRP or not TargetHRP.Parent then return end
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    hrp.CFrame = CFrame.new(TargetHRP.Position.X, TargetHRP.Position.Y + 2.5, TargetHRP.Position.Z)
+    hrp.Velocity = Vector3.zero
+end
+
+local function fightLoop()
+    while TargetPlayer and TargetPlayer.Parent and IsFighting and ScriptEnabled do
+        if not TargetPlayer.Character or not TargetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            task.wait(0.3)
+            continue
+        end
+        TargetHRP = TargetPlayer.Character.HumanoidRootPart
+        TargetHumanoid = TargetPlayer.Character:FindFirstChild("Humanoid")
+        if not TargetHumanoid then task.wait(0.3) continue end
+        local hp = TargetHumanoid.Health
+        if hp <= 0 then break end
+        faceTarget()
+        if hp > 2 then
+            for i = 1, 5 do
+                if not IsFighting or not ScriptEnabled then break end
+                if not TargetHumanoid or not TargetHumanoid.Parent then break end
+                if TargetHumanoid.Health <= 2 then break end
+                hitTarget()
+                task.wait(0.05)
+            end
+            task.wait(0.1)
+        else
+            standOnTarget()
+            task.wait(0.1)
+            stompTarget()
+            task.wait(0.1)
+            stompTarget()
+            task.wait(0.1)
+            hitTarget()
+            task.wait(0.05)
+            hitTarget()
+            task.wait(0.2)
+            if TargetHumanoid and TargetHumanoid.Parent and TargetHumanoid.Health > 0 then
+                standOnTarget()
+                stompTarget()
+                task.wait(0.1)
+                stompTarget()
+                task.wait(0.2)
+            end
+        end
+        task.wait(0.05)
+    end
+    IsFighting = false
+end
+
+local function moveToTargetWalk()
+    local char, hum, hrp = getChar()
+    hum.WalkSpeed = 30
+    local startTime = tick()
+    while hrp and hrp.Parent and TargetHRP and TargetHRP.Parent and IsFighting do
+        local dist = (hrp.Position - TargetHRP.Position).Magnitude
+        if dist <= 5 then break end
+        if tick() - startTime > 8 then break end
+        hum:MoveTo(TargetHRP.Position)
+        task.wait(0.1)
+    end
+    hum:MoveTo(Vector3.zero)
+end
+
+local function attackTarget(target)
+    IsAtHome = false
+    TargetPlayer = target
+    IsFighting = true
+    updateTargetInfo()
+    local char, hum, hrp = getChar()
+    enableFreefall(hum)
+    local targetPos = target.Character.HumanoidRootPart.Position
+    flyToTarget(targetPos, hum, hrp)
+    landSafely(targetPos, hum, hrp)
+    UndergroundY = nil
+    moveToTargetWalk()
+    fightLoop()
+    IsFighting = false
+    updateTargetInfo()
+    goHome()
+end
+
+local function mainLoop()
+    while ScriptEnabled do
+        if IsAtHome and not IsFighting and not IsReturning then
+            local target = scanForTarget()
+            if target then
+                attackTarget(target)
+            end
+        end
+        task.wait(0.5)
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not ScriptEnabled then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if NoclipOn and char then enableNoclip(char) end
+    if UndergroundY and hrp and hum and hum.PlatformStand then
+        if math.abs(hrp.Position.Y - UndergroundY) > 2 then
+            hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+        end
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    if ScriptEnabled then
+        TargetPlayer = nil
+        TargetHRP = nil
+        TargetHumanoid = nil
+        IsFighting = false
+        IsReturning = false
+        IsAtHome = false
+        UndergroundY = nil
+        goHome()
+    end
+end)
+
+--// ============ GUI ============
+local gui = Instance.new("ScreenGui")
+gui.Name = "CLONE_A_GUI"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 360)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -180)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Visible = true
+mainFrame.Parent = gui
+
+local mainCorner = Instance.new("UICorner", mainFrame)
+mainCorner.CornerRadius = UDim.new(0, 14)
+
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Color = Color3.fromRGB(255, 100, 0)
+mainStroke.Thickness = 2
+mainStroke.Transparency = 0.4
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 38)
+titleBar.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+titleBar.BackgroundTransparency = 0.3
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner", titleBar)
+titleCorner.CornerRadius = UDim.new(0, 14)
+
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(0.6, 0, 1, 0)
+titleText.Position = UDim2.new(0.05, 0, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Font = Enum.Font.GothamBold
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 14
+titleText.Text = "⚔️ CLONE A - SÁT THỦ"
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.Parent = titleBar
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+minimizeBtn.Position = UDim2.new(1, -66, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+minimizeBtn.BackgroundTransparency = 0.2
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+minimizeBtn.TextSize = 16
+minimizeBtn.Text = "─"
+minimizeBtn.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner", minimizeBtn)
+minimizeCorner.CornerRadius = UDim.new(0, 6)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -34, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeBtn.BackgroundTransparency = 0.2
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 16
+closeBtn.Text = "✕"
+closeBtn.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner", closeBtn)
+closeCorner.CornerRadius = UDim.new(0, 6)
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, -20, 1, -54)
+contentFrame.Position = UDim2.new(0, 10, 0, 46)
+contentFrame.BackgroundTransparency = 1
+contentFrame.BorderSizePixel = 0
+contentFrame.Parent = mainFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 28)
+statusLabel.Position = UDim2.new(0, 0, 0, 0)
+statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+statusLabel.BackgroundTransparency = 0.2
+statusLabel.BorderSizePixel = 0
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+statusLabel.TextSize = 11
+statusLabel.Text = "⏸ CHƯA KÍCH HOẠT"
+statusLabel.Parent = contentFrame
+
+local statusCorner = Instance.new("UICorner", statusLabel)
+statusCorner.CornerRadius = UDim.new(0, 8)
+
+local targetLabel = Instance.new("TextLabel")
+targetLabel.Size = UDim2.new(1, 0, 0, 28)
+targetLabel.Position = UDim2.new(0, 0, 0, 34)
+targetLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+targetLabel.BackgroundTransparency = 0.2
+targetLabel.BorderSizePixel = 0
+targetLabel.Font = Enum.Font.GothamBold
+targetLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+targetLabel.TextSize = 11
+targetLabel.Text = "🎯 TARGET: CHƯA CHỌN"
+targetLabel.TextTruncate = Enum.TextTruncate.AtEnd
+targetLabel.Parent = contentFrame
+
+local targetCorner = Instance.new("UICorner", targetLabel)
+targetCorner.CornerRadius = UDim.new(0, 8)
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, -130)
+scrollFrame.Position = UDim2.new(0, 0, 0, 68)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 0)
+scrollFrame.Parent = contentFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 4)
+listLayout.SortOrder = Enum.SortOrder.Name
+listLayout.Parent = scrollFrame
+
+local padding = Instance.new("UIPadding")
+padding.PaddingRight = UDim.new(0, 6)
+padding.Parent = scrollFrame
+
+scrollFrame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 4)
+end)
+
+local startBtn = Instance.new("TextButton")
+startBtn.Size = UDim2.new(1, 0, 0, 36)
+startBtn.Position = UDim2.new(0, 0, 1, -60)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+startBtn.BackgroundTransparency = 0.3
+startBtn.Font = Enum.Font.GothamBold
+startBtn.TextColor3 = Color3.new(1, 1, 1)
+startBtn.TextSize = 14
+startBtn.Text = "▶ START"
+startBtn.Parent = contentFrame
+
+local startCorner = Instance.new("UICorner", startBtn)
+startCorner.CornerRadius = UDim.new(0, 8)
+
+local copyBtn = Instance.new("TextButton")
+copyBtn.Size = UDim2.new(1, 0, 0, 20)
+copyBtn.Position = UDim2.new(0, 0, 1, -20)
+copyBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+copyBtn.BackgroundTransparency = 0.3
+copyBtn.Font = Enum.Font.GothamBold
+copyBtn.TextColor3 = Color3.new(1, 1, 1)
+copyBtn.TextSize = 10
+copyBtn.Text = "📋 COPY TÊN TARGET"
+copyBtn.Parent = contentFrame
+
+local copyCorner = Instance.new("UICorner", copyBtn)
+copyCorner.CornerRadius = UDim.new(0, 6)
+
+local isMinimized = false
+
+function updateTargetInfo()
+    if TargetPlayer and TargetPlayer.Parent then
+        targetLabel.Text = "🎯 TARGET: " .. TargetPlayer.Name
+    else
+        targetLabel.Text = "🎯 TARGET: CHƯA CHỌN"
+    end
+end
+
+local function refreshPlayerList()
+    for _, v in pairs(scrollFrame:GetChildren()) do
+        if v:IsA("Frame") then v:Destroy() end
+    end
+    local players = Players:GetPlayers()
+    for _, plr in pairs(players) do
+        if plr ~= player then
+            local playerFrame = Instance.new("Frame")
+            playerFrame.Size = UDim2.new(1, 0, 0, 38)
+            playerFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+            playerFrame.BackgroundTransparency = 0.2
+            playerFrame.BorderSizePixel = 0
+            playerFrame.Parent = scrollFrame
+            local pfCorner = Instance.new("UICorner", playerFrame)
+            pfCorner.CornerRadius = UDim.new(0, 8)
+            if TargetPlayer == plr then
+                local pfStroke = Instance.new("UIStroke", playerFrame)
+                pfStroke.Color = Color3.fromRGB(0, 255, 100)
+                pfStroke.Thickness = 2
+                pfStroke.Transparency = 0.3
+            end
+            local nameLabel = Instance.new("TextLabel")
+            nameLabel.Size = UDim2.new(0, 120, 1, 0)
+            nameLabel.Position = UDim2.new(0, 8, 0, 0)
+            nameLabel.BackgroundTransparency = 1
+            nameLabel.Font = Enum.Font.GothamBold
+            nameLabel.TextColor3 = Color3.new(1, 1, 1)
+            nameLabel.TextSize = 12
+            nameLabel.Text = plr.Name
+            nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+            nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+            nameLabel.Parent = playerFrame
+            local selectBtn = Instance.new("TextButton")
+            selectBtn.Size = UDim2.new(0, 50, 0, 26)
+            selectBtn.Position = UDim2.new(1, -58, 0, 6)
+            selectBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+            selectBtn.BackgroundTransparency = 0.3
+            selectBtn.Font = Enum.Font.GothamBold
+            selectBtn.TextColor3 = Color3.new(1, 1, 1)
+            selectBtn.TextSize = 10
+            selectBtn.Text = "CHỌN"
+            selectBtn.Parent = playerFrame
+            local selCorner = Instance.new("UICorner", selectBtn)
+            selCorner.CornerRadius = UDim.new(0, 6)
+            local playerRef = plr
+            selectBtn.MouseButton1Click:Connect(function()
+                TargetPlayer = playerRef
+                updateTargetInfo()
+                refreshPlayerList()
+            end)
+        end
+    end
+    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 4)
+end
+
+copyBtn.MouseButton1Click:Connect(function()
+    if TargetPlayer and TargetPlayer.Parent then
+        pcall(function()
+            setclipboard(TargetPlayer.Name)
+        end)
+    end
+end)
+
+startBtn.MouseButton1Click:Connect(function()
+    ScriptEnabled = not ScriptEnabled
+    if ScriptEnabled then
+        startBtn.Text = "⏸ STOP"
+        startBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        startBtn.BackgroundTransparency = 0.3
+        statusLabel.Text = "▶ ĐANG HOẠT ĐỘNG"
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        IsAtHome = false
+        UndergroundY = nil
+        task.spawn(function()
+            goHome()
+            mainLoop()
+        end)
+    else
+        startBtn.Text = "▶ START"
+        startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+        startBtn.BackgroundTransparency = 0.3
+        statusLabel.Text = "⏸ ĐÃ DỪNG"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+        IsFighting = false
+        IsAtHome = false
+        UndergroundY = nil
+        TargetPlayer = nil
+        TargetHRP = nil
+        TargetHumanoid = nil
+        updateTargetInfo()
+    end
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        contentFrame.Visible = false
+        mainFrame.Size = UDim2.new(0, 300, 0, 46)
+        minimizeBtn.Text = "□"
+    else
+        contentFrame.Visible = true
+        mainFrame.Size = UDim2.new(0, 300, 0, 360)
+        minimizeBtn.Text = "─"
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    ScriptEnabled = false
+    IsFighting = false
+    IsAtHome = false
+    UndergroundY = nil
+    TargetPlayer = nil
+    TargetHRP = nil
+    TargetHumanoid = nil
+    gui:Destroy()
+end)
+
+local dragToggle = false
+local dragStart = Vector2.zero
+local startPos = UDim2.new(0.5, -150, 0.5, -180)
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+    dragToggle = false
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+refreshPlayerList()
+
+task.spawn(function()
+    while gui and gui.Parent do
+        refreshPlayerList()
+        task.wait(2)
+    end
+end)
