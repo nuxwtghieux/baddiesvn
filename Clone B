@@ -1,0 +1,356 @@
+--code số 12: CLONE B (PHỤ) - BAY NGẦM DƯỚI ĐẤT CHUẨN GỐC + ĐỨNG YÊN TẠI HOME
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+pcall(function()
+    local old = PlayerGui:FindFirstChild("CLONE_B_GUI")
+    if old then old:Destroy() end
+end)
+
+local SPEED = 0
+local FLY_SPEED = 200
+local HEAD_OFFSET = 8
+local NoclipOn = false
+local UndergroundY = nil
+local HOME_POS = Vector3.new(563.2, 3.9, -20.8)
+local ScriptEnabled = false
+local IsFlying = false
+local IsAtHome = false
+
+local function getChar()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    return char, hum, hrp
+end
+
+local function enableNoclip(char)
+    NoclipOn = true
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = false end
+    end
+end
+
+local function disableNoclip(char)
+    NoclipOn = false
+    for _, v in pairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = true end
+    end
+end
+
+local function enableFreefall(hum)
+    hum.PlatformStand = true
+    workspace.Gravity = 0
+end
+
+local function disableFreefall(hum, hrp)
+    hum.PlatformStand = false
+    hum.AutoRotate = true
+    workspace.Gravity = 196.2
+    if hrp then hrp.Velocity = Vector3.zero end
+    hum.WalkSpeed = SPEED
+end
+
+local function calculateUndergroundY(zoneY)
+    return zoneY - HEAD_OFFSET
+end
+
+local function flyToTarget(targetPos, hum, hrp)
+    IsFlying = true
+    local lastPos = hrp.Position
+    local stuckTime = 0
+    enableFreefall(hum)
+    enableNoclip(player.Character)
+    local flyY = calculateUndergroundY(targetPos.Y)
+    UndergroundY = flyY
+    hrp.CFrame = CFrame.new(hrp.Position.X, flyY, hrp.Position.Z)
+    hrp.Velocity = Vector3.zero
+    while ScriptEnabled and IsFlying and hrp and hrp.Parent do
+        local currentPos = hrp.Position
+        local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
+        local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
+        local dist = (flatCurrent - flatTarget).Magnitude
+        if dist <= 5 then
+            break
+        end
+        local direction = (flatTarget - flatCurrent).Unit
+        hrp.Velocity = Vector3.new(direction.X * FLY_SPEED, 0, direction.Z * FLY_SPEED)
+        if math.abs(hrp.Position.Y - flyY) > 0.5 then
+            hrp.CFrame = CFrame.new(hrp.Position.X, flyY, hrp.Position.Z)
+        end
+        hum.AutoRotate = false
+        if direction.Magnitude > 0.01 then
+            hrp.CFrame = CFrame.lookAt(hrp.Position, Vector3.new(hrp.Position.X + direction.X, hrp.Position.Y, hrp.Position.Z + direction.Z))
+        end
+        if (hrp.Position - lastPos).Magnitude < 0.5 then
+            stuckTime = stuckTime + 0.1
+            if stuckTime >= 1.5 then
+                break
+            end
+        else
+            stuckTime = 0
+        end
+        lastPos = hrp.Position
+        task.wait()
+    end
+    hrp.Velocity = Vector3.zero
+    IsFlying = false
+end
+
+local function landSafely(targetPos, hum, hrp)
+    if not hrp or not hrp.Parent then return end
+    hrp.Velocity = Vector3.zero
+    disableFreefall(hum, hrp)
+    task.wait(0.1)
+    hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z)
+    hrp.Velocity = Vector3.zero
+    task.wait(0.2)
+    disableNoclip(player.Character)
+    hum.WalkSpeed = SPEED
+    UndergroundY = nil
+    IsFlying = false
+end
+
+local function goHome()
+    IsAtHome = false
+    IsFlying = false
+    local char, hum, hrp = getChar()
+    flyToTarget(HOME_POS, hum, hrp)
+    landSafely(HOME_POS, hum, hrp)
+    IsAtHome = true
+end
+
+RunService.Heartbeat:Connect(function()
+    if not ScriptEnabled then return end
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
+    if NoclipOn and char then enableNoclip(char) end
+    if IsFlying and UndergroundY then
+        if math.abs(hrp.Position.Y - UndergroundY) > 2 then
+            hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
+            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+        end
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    if ScriptEnabled then
+        IsAtHome = false
+        IsFlying = false
+        UndergroundY = nil
+        goHome()
+    end
+end)
+
+--// ============ GUI ============
+local gui = Instance.new("ScreenGui")
+gui.Name = "CLONE_B_GUI"
+gui.ResetOnSpawn = false
+gui.Parent = PlayerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 260, 0, 160)
+mainFrame.Position = UDim2.new(0.5, -130, 0.5, -80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Visible = true
+mainFrame.Parent = gui
+
+local mainCorner = Instance.new("UICorner", mainFrame)
+mainCorner.CornerRadius = UDim.new(0, 14)
+
+local mainStroke = Instance.new("UIStroke", mainFrame)
+mainStroke.Color = Color3.fromRGB(0, 150, 255)
+mainStroke.Thickness = 2
+mainStroke.Transparency = 0.4
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 38)
+titleBar.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+titleBar.BackgroundTransparency = 0.3
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner", titleBar)
+titleCorner.CornerRadius = UDim.new(0, 14)
+
+local titleText = Instance.new("TextLabel")
+titleText.Size = UDim2.new(0.6, 0, 1, 0)
+titleText.Position = UDim2.new(0.05, 0, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Font = Enum.Font.GothamBold
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 14
+titleText.Text = "🛡️ CLONE B - TRỤ"
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.Parent = titleBar
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
+minimizeBtn.Position = UDim2.new(1, -66, 0, 5)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+minimizeBtn.BackgroundTransparency = 0.2
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+minimizeBtn.TextSize = 16
+minimizeBtn.Text = "─"
+minimizeBtn.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner", minimizeBtn)
+minimizeCorner.CornerRadius = UDim.new(0, 6)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 28, 0, 28)
+closeBtn.Position = UDim2.new(1, -34, 0, 5)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeBtn.BackgroundTransparency = 0.2
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 16
+closeBtn.Text = "✕"
+closeBtn.Parent = titleBar
+
+local closeCorner = Instance.new("UICorner", closeBtn)
+closeCorner.CornerRadius = UDim.new(0, 6)
+
+local contentFrame = Instance.new("Frame")
+contentFrame.Size = UDim2.new(1, -20, 1, -54)
+contentFrame.Position = UDim2.new(0, 10, 0, 46)
+contentFrame.BackgroundTransparency = 1
+contentFrame.BorderSizePixel = 0
+contentFrame.Parent = mainFrame
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0, 10)
+statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+statusLabel.BackgroundTransparency = 0.2
+statusLabel.BorderSizePixel = 0
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+statusLabel.TextSize = 12
+statusLabel.Text = "⏸ CHƯA KÍCH HOẠT"
+statusLabel.Parent = contentFrame
+
+local statusCorner = Instance.new("UICorner", statusLabel)
+statusCorner.CornerRadius = UDim.new(0, 8)
+
+local posLabel = Instance.new("TextLabel")
+posLabel.Size = UDim2.new(1, 0, 0, 24)
+posLabel.Position = UDim2.new(0, 0, 0, 48)
+posLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+posLabel.BackgroundTransparency = 0.2
+posLabel.BorderSizePixel = 0
+posLabel.Font = Enum.Font.Gotham
+posLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+posLabel.TextSize = 10
+posLabel.Text = "📍 HOME: 563.2, 3.9, -20.8"
+posLabel.Parent = contentFrame
+
+local posCorner = Instance.new("UICorner", posLabel)
+posCorner.CornerRadius = UDim.new(0, 6)
+
+local startBtn = Instance.new("TextButton")
+startBtn.Size = UDim2.new(1, 0, 0, 36)
+startBtn.Position = UDim2.new(0, 0, 1, -42)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+startBtn.BackgroundTransparency = 0.3
+startBtn.Font = Enum.Font.GothamBold
+startBtn.TextColor3 = Color3.new(1, 1, 1)
+startBtn.TextSize = 14
+startBtn.Text = "▶ START"
+startBtn.Parent = contentFrame
+
+local startCorner = Instance.new("UICorner", startBtn)
+startCorner.CornerRadius = UDim.new(0, 8)
+
+local isMinimized = false
+
+startBtn.MouseButton1Click:Connect(function()
+    ScriptEnabled = not ScriptEnabled
+    if ScriptEnabled then
+        startBtn.Text = "⏸ STOP"
+        startBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        startBtn.BackgroundTransparency = 0.3
+        statusLabel.Text = "▶ ĐANG GIỮ VỊ TRÍ"
+        statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        IsAtHome = false
+        IsFlying = false
+        UndergroundY = nil
+        task.spawn(function()
+            goHome()
+            while ScriptEnabled do
+                local char = player.Character
+                if char and char:FindFirstChild("HumanoidRootPart") and IsAtHome and not IsFlying then
+                    local hrp = char.HumanoidRootPart
+                    if (hrp.Position - HOME_POS).Magnitude > 15 then
+                        goHome()
+                    end
+                end
+                task.wait(2)
+            end
+        end)
+    else
+        startBtn.Text = "▶ START"
+        startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+        startBtn.BackgroundTransparency = 0.3
+        statusLabel.Text = "⏸ ĐÃ DỪNG"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+        IsAtHome = false
+        IsFlying = false
+        UndergroundY = nil
+    end
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        contentFrame.Visible = false
+        mainFrame.Size = UDim2.new(0, 260, 0, 46)
+        minimizeBtn.Text = "□"
+    else
+        contentFrame.Visible = true
+        mainFrame.Size = UDim2.new(0, 260, 0, 160)
+        minimizeBtn.Text = "─"
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    ScriptEnabled = false
+    IsAtHome = false
+    IsFlying = false
+    UndergroundY = nil
+    gui:Destroy()
+end)
+
+local dragToggle = false
+local dragStart = Vector2.zero
+local startPos = UDim2.new(0.5, -130, 0.5, -80)
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+    dragToggle = false
+end)
+
+UIS.InputChanged:Connect(function(input)
+    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
