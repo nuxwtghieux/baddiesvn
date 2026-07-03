@@ -1,4 +1,4 @@
---code số 16: CLONE A (CHỦ) - SỬA REMOTE HIT CÓ KEY + ÁP SÁT + BỎ QUA THÔNG BÁO
+--code số 17: CLONE A (CHỦ) - GUI AN TOÀN KHÔNG BỊ BAN + TẮT BAY KHI TỚI
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -363,187 +363,140 @@ player.CharacterAdded:Connect(function(char)
     end
 end)
 
---// ============ GUI ============
+--// ============ GUI SIÊU NHẸ KHÔNG BỊ BAN ============
 local gui = Instance.new("ScreenGui")
-gui.Name = "CLONE_A_GUI"
+gui.Name = "A"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 360)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -180)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-mainFrame.BackgroundTransparency = 0.1
+mainFrame.Size = UDim2.new(0, 280, 0, 340)
+mainFrame.Position = UDim2.new(0, 10, 0, 80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Visible = true
 mainFrame.Parent = gui
+local c = Instance.new("UICorner", mainFrame) c.CornerRadius = UDim.new(0, 10)
 
-local mainCorner = Instance.new("UICorner", mainFrame)
-mainCorner.CornerRadius = UDim.new(0, 14)
+local t = Instance.new("Frame")
+t.Size = UDim2.new(1, 0, 0, 32)
+t.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+t.BorderSizePixel = 0
+t.Parent = mainFrame
+local tc = Instance.new("UICorner", t) tc.CornerRadius = UDim.new(0, 10)
 
-local mainStroke = Instance.new("UIStroke", mainFrame)
-mainStroke.Color = Color3.fromRGB(255, 100, 0)
-mainStroke.Thickness = 2
-mainStroke.Transparency = 0.4
-
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 38)
-titleBar.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
-titleBar.BackgroundTransparency = 0.3
-titleBar.BorderSizePixel = 0
-titleBar.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner", titleBar)
-titleCorner.CornerRadius = UDim.new(0, 14)
-
-local titleText = Instance.new("TextLabel")
-titleText.Size = UDim2.new(0.6, 0, 1, 0)
-titleText.Position = UDim2.new(0.05, 0, 0, 0)
-titleText.BackgroundTransparency = 1
-titleText.Font = Enum.Font.GothamBold
-titleText.TextColor3 = Color3.new(1, 1, 1)
-titleText.TextSize = 14
-titleText.Text = "⚔️ CLONE A - SÁT THỦ"
-titleText.TextXAlignment = Enum.TextXAlignment.Left
-titleText.Parent = titleBar
-
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
-minimizeBtn.Position = UDim2.new(1, -66, 0, 5)
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-minimizeBtn.BackgroundTransparency = 0.2
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
-minimizeBtn.TextSize = 16
-minimizeBtn.Text = "─"
-minimizeBtn.Parent = titleBar
-
-local minimizeCorner = Instance.new("UICorner", minimizeBtn)
-minimizeCorner.CornerRadius = UDim.new(0, 6)
+local tl = Instance.new("TextLabel")
+tl.Size = UDim2.new(1, -60, 1, 0)
+tl.Position = UDim2.new(0, 10, 0, 0)
+tl.BackgroundTransparency = 1
+tl.Font = Enum.Font.GothamBold
+tl.TextColor3 = Color3.new(1, 1, 1)
+tl.TextSize = 13
+tl.Text = "CLONE A"
+tl.TextXAlignment = Enum.TextXAlignment.Left
+tl.Parent = t
 
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
-closeBtn.Position = UDim2.new(1, -34, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-closeBtn.BackgroundTransparency = 0.2
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -28, 0, 4)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.TextSize = 16
-closeBtn.Text = "✕"
-closeBtn.Parent = titleBar
-
-local closeCorner = Instance.new("UICorner", closeBtn)
-closeCorner.CornerRadius = UDim.new(0, 6)
+closeBtn.TextSize = 12
+closeBtn.Text = "X"
+closeBtn.Parent = t
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
 
 local contentFrame = Instance.new("Frame")
-contentFrame.Size = UDim2.new(1, -20, 1, -54)
-contentFrame.Position = UDim2.new(0, 10, 0, 46)
+contentFrame.Size = UDim2.new(1, -16, 1, -40)
+contentFrame.Position = UDim2.new(0, 8, 0, 38)
 contentFrame.BackgroundTransparency = 1
 contentFrame.BorderSizePixel = 0
 contentFrame.Parent = mainFrame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 28)
+statusLabel.Size = UDim2.new(1, 0, 0, 24)
 statusLabel.Position = UDim2.new(0, 0, 0, 0)
-statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-statusLabel.BackgroundTransparency = 0.2
+statusLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 statusLabel.BorderSizePixel = 0
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
 statusLabel.TextSize = 11
-statusLabel.Text = "⏸ CHƯA KÍCH HOẠT"
+statusLabel.Text = "CHUA KICH HOAT"
 statusLabel.Parent = contentFrame
-
-local statusCorner = Instance.new("UICorner", statusLabel)
-statusCorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
 
 local targetLabel = Instance.new("TextLabel")
-targetLabel.Size = UDim2.new(1, 0, 0, 28)
-targetLabel.Position = UDim2.new(0, 0, 0, 34)
-targetLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-targetLabel.BackgroundTransparency = 0.2
+targetLabel.Size = UDim2.new(1, 0, 0, 24)
+targetLabel.Position = UDim2.new(0, 0, 0, 28)
+targetLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 targetLabel.BorderSizePixel = 0
 targetLabel.Font = Enum.Font.GothamBold
 targetLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
 targetLabel.TextSize = 11
-targetLabel.Text = "🎯 TARGET: CHƯA CHỌN"
+targetLabel.Text = "TARGET: CHUA CHON"
 targetLabel.TextTruncate = Enum.TextTruncate.AtEnd
 targetLabel.Parent = contentFrame
-
-local targetCorner = Instance.new("UICorner", targetLabel)
-targetCorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", targetLabel).CornerRadius = UDim.new(0, 6)
 
 local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, 0, 1, -130)
-scrollFrame.Position = UDim2.new(0, 0, 0, 68)
-scrollFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-scrollFrame.BackgroundTransparency = 0.5
+scrollFrame.Size = UDim2.new(1, 0, 1, -116)
+scrollFrame.Position = UDim2.new(0, 0, 0, 56)
+scrollFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
 scrollFrame.BorderSizePixel = 0
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-scrollFrame.ScrollBarThickness = 6
+scrollFrame.ScrollBarThickness = 4
 scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 100, 0)
 scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 scrollFrame.VerticalScrollBarInset = Enum.ScrollBarInset.Always
 scrollFrame.ClipsDescendants = true
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 scrollFrame.Parent = contentFrame
-
-local scrollCorner = Instance.new("UICorner", scrollFrame)
-scrollCorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", scrollFrame).CornerRadius = UDim.new(0, 6)
 
 local listLayout = Instance.new("UIListLayout")
-listLayout.Padding = UDim.new(0, 4)
+listLayout.Padding = UDim.new(0, 3)
 listLayout.SortOrder = Enum.SortOrder.Name
 listLayout.Parent = scrollFrame
 
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 4)
-padding.PaddingBottom = UDim.new(0, 4)
-padding.PaddingLeft = UDim.new(0, 4)
-padding.PaddingRight = UDim.new(0, 4)
-padding.Parent = scrollFrame
+local pad = Instance.new("UIPadding")
+pad.PaddingTop = UDim.new(0, 3)
+pad.PaddingBottom = UDim.new(0, 3)
+pad.PaddingLeft = UDim.new(0, 3)
+pad.PaddingRight = UDim.new(0, 3)
+pad.Parent = scrollFrame
 
 local function updateCanvasSize()
-    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 8)
+    listLayout.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 6)
 end
-
 listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvasSize)
 
 local startBtn = Instance.new("TextButton")
-startBtn.Size = UDim2.new(1, 0, 0, 36)
-startBtn.Position = UDim2.new(0, 0, 1, -60)
-startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-startBtn.BackgroundTransparency = 0.3
+startBtn.Size = UDim2.new(1, 0, 0, 32)
+startBtn.Position = UDim2.new(0, 0, 1, -56)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
 startBtn.Font = Enum.Font.GothamBold
 startBtn.TextColor3 = Color3.new(1, 1, 1)
-startBtn.TextSize = 14
-startBtn.Text = "▶ START"
+startBtn.TextSize = 13
+startBtn.Text = "START"
 startBtn.Parent = contentFrame
-
-local startCorner = Instance.new("UICorner", startBtn)
-startCorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 6)
 
 local copyBtn = Instance.new("TextButton")
 copyBtn.Size = UDim2.new(1, 0, 0, 20)
 copyBtn.Position = UDim2.new(0, 0, 1, -20)
-copyBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-copyBtn.BackgroundTransparency = 0.3
+copyBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
 copyBtn.Font = Enum.Font.GothamBold
 copyBtn.TextColor3 = Color3.new(1, 1, 1)
 copyBtn.TextSize = 10
-copyBtn.Text = "📋 COPY TÊN TARGET"
+copyBtn.Text = "COPY TEN"
 copyBtn.Parent = contentFrame
-
-local copyCorner = Instance.new("UICorner", copyBtn)
-copyCorner.CornerRadius = UDim.new(0, 6)
-
-local isMinimized = false
+Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
 
 function updateTargetInfo()
     if TargetPlayer and TargetPlayer.Parent then
-        targetLabel.Text = "🎯 TARGET: " .. TargetPlayer.Name
+        targetLabel.Text = "TARGET: " .. TargetPlayer.Name
     else
-        targetLabel.Text = "🎯 TARGET: CHƯA CHỌN"
+        targetLabel.Text = "TARGET: CHUA CHON"
     end
 end
 
@@ -556,79 +509,61 @@ local function refreshPlayerList()
     for _, plr in pairs(players) do
         if plr ~= player then
             count = count + 1
-            local playerFrame = Instance.new("Frame")
-            playerFrame.Size = UDim2.new(1, -8, 0, 38)
-            playerFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
-            playerFrame.BackgroundTransparency = 0.2
-            playerFrame.BorderSizePixel = 0
-            playerFrame.Parent = scrollFrame
-            local pfCorner = Instance.new("UICorner", playerFrame)
-            pfCorner.CornerRadius = UDim.new(0, 8)
+            local pf = Instance.new("Frame")
+            pf.Size = UDim2.new(1, -6, 0, 34)
+            pf.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+            pf.BorderSizePixel = 0
+            pf.Parent = scrollFrame
+            Instance.new("UICorner", pf).CornerRadius = UDim.new(0, 6)
             if TargetPlayer == plr then
-                local pfStroke = Instance.new("UIStroke", playerFrame)
-                pfStroke.Color = Color3.fromRGB(0, 255, 100)
-                pfStroke.Thickness = 2
-                pfStroke.Transparency = 0.3
+                local s = Instance.new("UIStroke", pf)
+                s.Color = Color3.fromRGB(0, 255, 100)
+                s.Thickness = 1
             end
-            local nameLabel = Instance.new("TextLabel")
-            nameLabel.Size = UDim2.new(0, 130, 1, 0)
-            nameLabel.Position = UDim2.new(0, 8, 0, 0)
-            nameLabel.BackgroundTransparency = 1
-            nameLabel.Font = Enum.Font.GothamBold
-            nameLabel.TextColor3 = Color3.new(1, 1, 1)
-            nameLabel.TextSize = 12
-            nameLabel.Text = plr.Name
-            nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-            nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
-            nameLabel.Parent = playerFrame
-            local selectBtn = Instance.new("TextButton")
-            selectBtn.Size = UDim2.new(0, 55, 0, 26)
-            selectBtn.Position = UDim2.new(1, -63, 0, 6)
-            selectBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
-            selectBtn.BackgroundTransparency = 0.3
-            selectBtn.Font = Enum.Font.GothamBold
-            selectBtn.TextColor3 = Color3.new(1, 1, 1)
-            selectBtn.TextSize = 10
-            selectBtn.Text = "CHỌN"
-            selectBtn.Parent = playerFrame
-            local selCorner = Instance.new("UICorner", selectBtn)
-            selCorner.CornerRadius = UDim.new(0, 6)
-            local playerRef = plr
-            selectBtn.MouseButton1Click:Connect(function()
-                TargetPlayer = playerRef
+            local nl = Instance.new("TextLabel")
+            nl.Size = UDim2.new(0, 140, 1, 0)
+            nl.Position = UDim2.new(0, 6, 0, 0)
+            nl.BackgroundTransparency = 1
+            nl.Font = Enum.Font.GothamBold
+            nl.TextColor3 = Color3.new(1, 1, 1)
+            nl.TextSize = 11
+            nl.Text = plr.Name
+            nl.TextXAlignment = Enum.TextXAlignment.Left
+            nl.TextTruncate = Enum.TextTruncate.AtEnd
+            nl.Parent = pf
+            local sb = Instance.new("TextButton")
+            sb.Size = UDim2.new(0, 50, 0, 22)
+            sb.Position = UDim2.new(1, -56, 0, 6)
+            sb.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+            sb.Font = Enum.Font.GothamBold
+            sb.TextColor3 = Color3.new(1, 1, 1)
+            sb.TextSize = 10
+            sb.Text = "CHON"
+            sb.Parent = pf
+            Instance.new("UICorner", sb).CornerRadius = UDim.new(0, 4)
+            local pr = plr
+            sb.MouseButton1Click:Connect(function()
+                TargetPlayer = pr
                 updateTargetInfo()
                 refreshPlayerList()
             end)
         end
-    end
-    if count == 0 then
-        local noPlayerLabel = Instance.new("TextLabel")
-        noPlayerLabel.Size = UDim2.new(1, -8, 0, 30)
-        noPlayerLabel.BackgroundTransparency = 1
-        noPlayerLabel.Font = Enum.Font.Gotham
-        noPlayerLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-        noPlayerLabel.TextSize = 12
-        noPlayerLabel.Text = "Không có người chơi nào"
-        noPlayerLabel.Parent = scrollFrame
     end
     updateCanvasSize()
 end
 
 copyBtn.MouseButton1Click:Connect(function()
     if TargetPlayer and TargetPlayer.Parent then
-        pcall(function()
-            setclipboard(TargetPlayer.Name)
-        end)
+        pcall(function() setclipboard(TargetPlayer.Name) end)
     end
 end)
 
 startBtn.MouseButton1Click:Connect(function()
     ScriptEnabled = not ScriptEnabled
     if ScriptEnabled then
-        startBtn.Text = "⏸ STOP"
-        startBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        startBtn.BackgroundTransparency = 0.3
-        statusLabel.Text = "▶ ĐANG HOẠT ĐỘNG"
+        startBtn.Text = "STOP"
+        startBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        statusLabel.Text = "DANG HOAT DONG"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         IsAtHome = false
         IsFlying = false
@@ -638,10 +573,9 @@ startBtn.MouseButton1Click:Connect(function()
             mainLoop()
         end)
     else
-        startBtn.Text = "▶ START"
-        startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-        startBtn.BackgroundTransparency = 0.3
-        statusLabel.Text = "⏸ ĐÃ DỪNG"
+        startBtn.Text = "START"
+        startBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+        statusLabel.Text = "DA DUNG"
         statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
         IsFighting = false
         IsAtHome = false
@@ -651,19 +585,6 @@ startBtn.MouseButton1Click:Connect(function()
         TargetHRP = nil
         TargetHumanoid = nil
         updateTargetInfo()
-    end
-end)
-
-minimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        contentFrame.Visible = false
-        mainFrame.Size = UDim2.new(0, 300, 0, 46)
-        minimizeBtn.Text = "□"
-    else
-        contentFrame.Visible = true
-        mainFrame.Size = UDim2.new(0, 300, 0, 360)
-        minimizeBtn.Text = "─"
     end
 end)
 
@@ -681,20 +602,15 @@ end)
 
 local dragToggle = false
 local dragStart = Vector2.zero
-local startPos = UDim2.new(0.5, -150, 0.5, -180)
-
-titleBar.InputBegan:Connect(function(input)
+local startPos = UDim2.new(0, 10, 0, 80)
+t.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragToggle = true
         dragStart = input.Position
         startPos = mainFrame.Position
     end
 end)
-
-titleBar.InputEnded:Connect(function(input)
-    dragToggle = false
-end)
-
+t.InputEnded:Connect(function(input) dragToggle = false end)
 UIS.InputChanged:Connect(function(input)
     if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
@@ -703,7 +619,6 @@ UIS.InputChanged:Connect(function(input)
 end)
 
 refreshPlayerList()
-
 task.spawn(function()
     while gui and gui.Parent do
         refreshPlayerList()
