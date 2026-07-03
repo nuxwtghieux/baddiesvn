@@ -1,4 +1,4 @@
---code số 10: CLONE A (CHỦ) - BAY NGẦM DƯỚI ĐẤT CHUẨN GỐC + QUÉT GẦN + KHÔNG TELEPORT
+--code số 11: CLONE A (CHỦ) - FIX TẮT BAY KHI TỚI NƠI + QUÉT TARGET NGAY
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -25,6 +25,7 @@ local IsFighting = false
 local IsReturning = false
 local ScriptEnabled = false
 local IsAtHome = false
+local IsFlying = false
 local SCAN_RANGE = 50
 
 local function getChar()
@@ -65,24 +66,22 @@ local function calculateUndergroundY(zoneY)
     return zoneY - HEAD_OFFSET
 end
 
--- BAY NGẦM DƯỚI ĐẤT CHUẨN GỐC - KHÔNG TELEPORT
 local function flyToTarget(targetPos, hum, hrp)
+    IsFlying = true
     local lastPos = hrp.Position
     local stuckTime = 0
-    if not hum.PlatformStand then enableFreefall(hum) end
+    enableFreefall(hum)
     enableNoclip(player.Character)
     local flyY = calculateUndergroundY(targetPos.Y)
     UndergroundY = flyY
     hrp.CFrame = CFrame.new(hrp.Position.X, flyY, hrp.Position.Z)
     hrp.Velocity = Vector3.zero
-    while ScriptEnabled and hrp and hrp.Parent do
+    while ScriptEnabled and IsFlying and hrp and hrp.Parent do
         local currentPos = hrp.Position
         local flatCurrent = Vector3.new(currentPos.X, 0, currentPos.Z)
         local flatTarget = Vector3.new(targetPos.X, 0, targetPos.Z)
         local dist = (flatCurrent - flatTarget).Magnitude
-        if dist <= 3 then
-            hrp.CFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
-            hrp.Velocity = Vector3.zero
+        if dist <= 5 then
             break
         end
         local direction = (flatTarget - flatCurrent).Unit
@@ -97,9 +96,7 @@ local function flyToTarget(targetPos, hum, hrp)
         if (hrp.Position - lastPos).Magnitude < 0.5 then
             stuckTime = stuckTime + 0.1
             if stuckTime >= 1.5 then
-                hrp.CFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
-                hrp.Velocity = Vector3.zero
-                stuckTime = 0
+                break
             end
         else
             stuckTime = 0
@@ -108,14 +105,12 @@ local function flyToTarget(targetPos, hum, hrp)
         task.wait()
     end
     hrp.Velocity = Vector3.zero
-    if hrp and hrp.Parent then
-        hrp.CFrame = CFrame.new(targetPos.X, flyY, targetPos.Z)
-        hrp.Velocity = Vector3.zero
-    end
+    IsFlying = false
 end
 
 local function landSafely(targetPos, hum, hrp)
     if not hrp or not hrp.Parent then return end
+    hrp.Velocity = Vector3.zero
     disableFreefall(hum, hrp)
     task.wait(0.1)
     hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z)
@@ -123,23 +118,25 @@ local function landSafely(targetPos, hum, hrp)
     task.wait(0.2)
     disableNoclip(player.Character)
     hum.WalkSpeed = SPEED
+    UndergroundY = nil
+    IsFlying = false
 end
 
 local function goHome()
     IsReturning = true
     IsFighting = false
     IsAtHome = false
+    IsFlying = false
     local char, hum, hrp = getChar()
-    enableFreefall(hum)
     flyToTarget(HOME_POS, hum, hrp)
     landSafely(HOME_POS, hum, hrp)
-    UndergroundY = nil
     IsReturning = false
     IsAtHome = true
 end
 
 local function scanForTarget()
     if not IsAtHome then return nil end
+    if IsFlying then return nil end
     local char = player.Character
     if not char then return nil end
     local hrp = char:FindFirstChild("HumanoidRootPart")
@@ -260,15 +257,14 @@ end
 
 local function attackTarget(target)
     IsAtHome = false
+    IsFlying = false
     TargetPlayer = target
     IsFighting = true
     updateTargetInfo()
     local char, hum, hrp = getChar()
-    enableFreefall(hum)
     local targetPos = target.Character.HumanoidRootPart.Position
     flyToTarget(targetPos, hum, hrp)
     landSafely(targetPos, hum, hrp)
-    UndergroundY = nil
     moveToTargetWalk()
     fightLoop()
     IsFighting = false
@@ -278,7 +274,7 @@ end
 
 local function mainLoop()
     while ScriptEnabled do
-        if IsAtHome and not IsFighting and not IsReturning then
+        if IsAtHome and not IsFighting and not IsReturning and not IsFlying then
             local target = scanForTarget()
             if target then
                 attackTarget(target)
@@ -294,8 +290,9 @@ RunService.Heartbeat:Connect(function()
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
     if NoclipOn and char then enableNoclip(char) end
-    if UndergroundY and hrp and hum and hum.PlatformStand then
+    if IsFlying and UndergroundY then
         if math.abs(hrp.Position.Y - UndergroundY) > 2 then
             hrp.CFrame = CFrame.new(hrp.Position.X, UndergroundY, hrp.Position.Z)
             hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
@@ -312,6 +309,7 @@ player.CharacterAdded:Connect(function(char)
         IsFighting = false
         IsReturning = false
         IsAtHome = false
+        IsFlying = false
         UndergroundY = nil
         goHome()
     end
@@ -561,6 +559,7 @@ startBtn.MouseButton1Click:Connect(function()
         statusLabel.Text = "▶ ĐANG HOẠT ĐỘNG"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         IsAtHome = false
+        IsFlying = false
         UndergroundY = nil
         task.spawn(function()
             goHome()
@@ -574,6 +573,7 @@ startBtn.MouseButton1Click:Connect(function()
         statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
         IsFighting = false
         IsAtHome = false
+        IsFlying = false
         UndergroundY = nil
         TargetPlayer = nil
         TargetHRP = nil
@@ -599,6 +599,7 @@ closeBtn.MouseButton1Click:Connect(function()
     ScriptEnabled = false
     IsFighting = false
     IsAtHome = false
+    IsFlying = false
     UndergroundY = nil
     TargetPlayer = nil
     TargetHRP = nil
