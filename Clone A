@@ -1,5 +1,5 @@
 -- ==========================================================
--- SCRIPT CLONE A (MAIN ACC) - FIXED GUI FOR EXECUTOR
+-- SCRIPT CLONE A (MAIN ACC) - FIXED CONTINUOUS NOCLIP
 -- ==========================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -9,9 +9,9 @@ local CoreGui = game:GetService("CoreGui")
 local player = Players.LocalPlayer
 local EventRemote = ReplicatedStorage:WaitForChild("Event")
 
--- CẤU HÌNH DI CHUYỂN SIÊU NHANH
-local FLY_SPEED = 400 -- Tốc độ bay ngầm dưới lòng đất (Đã tăng tốc)
-local WALK_SPEED = 32  -- Tốc độ đi bộ áp sát mục tiêu (Đã tăng tốc)
+-- CẤU HÌNH DI CHUYỂN SIÊU TỐC
+local FLY_SPEED = 400
+local WALK_SPEED = 32
 local HEAD_OFFSET = 12 
 local FIXED_POS = Vector3.new(563.2, 3.9, -20.8)
 local RAD = 40
@@ -25,7 +25,6 @@ local Y = nil
 local En = false
 local Tar = nil
 
--- Hàm lấy thông tin nhân vật an toàn
 local function getChar()
     local char = player.Character or player.CharacterAdded:Wait()
     local hum = char:WaitForChild("Humanoid", 5)
@@ -33,18 +32,24 @@ local function getChar()
     return char, hum, hrp
 end
 
--- Bật/tắt noclip an toàn chống ban
 local function setNoc(char, state)
     noc = state
     if not char then return end
     for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then 
-            v.CanCollide = not state 
-        end
+        if v:IsA("BasePart") then v.CanCollide = not state end
     end
 end
 
--- Hàm thực thi bay ngầm tốc độ cao
+-- GHIM NOCLIP LIÊN TỤC MỖI KHUNG HÌNH KHI ĐANG BAY CHỐNG KẸT ĐẤT
+RunService.Heartbeat:Connect(function()
+    if not En or not act then return end 
+    local c, _, _ = getChar()
+    if noc and c then 
+        setNoc(c, true) -- Liên tục đè CanCollide = false chống game tự bật lại
+    end 
+end)
+
+-- Hàm bay ngầm chuẩn đích Vector3 3D
 local function fly(tg)
     if not act then return end 
     stb = false
@@ -56,48 +61,54 @@ local function fly(tg)
     setNoc(c, true)
     h.PlatformStand = true
     workspace.Gravity = 0
+    
+    -- Hạ độ cao xuống lòng đất ngay vị trí hiện tại trước khi bay ngang
     r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
+    task.wait(0.1)
     
+    -- Giai đoạn 1: Bay ngang dưới lòng đất
     while En and r and r.Parent and act do 
-        local d = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(tg.X, 0, tg.Z)).Magnitude 
-        if d <= 3 then break end
+        local currentUndergroundPos = Vector3.new(r.Position.X, Y, r.Position.Z)
+        local targetUndergroundPos = Vector3.new(tg.X, Y, tg.Z)
+        local d = (currentUndergroundPos - targetUndergroundPos).Magnitude 
         
-        local dir = (Vector3.new(tg.X, 0, tg.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Unit 
+        if d <= 4 then break end
+        
+        local dir = (targetUndergroundPos - currentUndergroundPos).Unit 
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
         
         if math.abs(r.Position.Y - Y) > 0.5 then 
             r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z) 
         end 
-        
-        h.AutoRotate = false 
-        if dir.Magnitude > 0.01 then 
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z)) 
-        end 
+        task.wait()
+    end
+    
+    -- Giai đoạn 2: Trồi thẳng đứng lên mặt đất (vẫn được bảo vệ bởi Heartbeat Noclip)
+    local upTargetY = tg.Y + 3 -- Nhô cao hơn mặt đất hẳn 3 studs để an toàn
+    while En and r and r.Parent and act do
+        if r.Position.Y >= upTargetY then break end
+        r.Velocity = Vector3.new(0, 50, 0) 
         task.wait()
     end
     
     En = false
-    if r then r.Velocity = Vector3.zero r.CFrame = CFrame.new(tg) end
-    task.wait(0.2)
+    
+    -- Giai đoạn 3: Khóa ổn định vật lý trên không rồi thả rụng tiếp đất
+    if r then 
+        r.Velocity = Vector3.zero 
+        r.CFrame = CFrame.new(tg)
+        r.Anchored = true 
+    end
+    task.wait(0.15)
+    
+    if r then r.Anchored = false end 
     if h then h.PlatformStand = false h.AutoRotate = true h.WalkSpeed = WALK_SPEED end
     workspace.Gravity = 196.2 
-    setNoc(c, false)
+    setNoc(c, false) -- Tiếp đất an toàn mới bật lại va chạm bình thường
     stb = true 
 end
 
--- Giữ trạng thái bay ngầm bằng Heartbeat
-RunService.Heartbeat:Connect(function()
-    if not En or not act then return end 
-    local c, _, r = getChar()
-    if noc and c then setNoc(c, true) end 
-    if r and Y and math.abs(r.Position.Y - Y) > 2 then 
-        r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-        r.Velocity = Vector3.new(r.Velocity.X, 0, r.Velocity.Z)
-    end 
-end)
-
--- Kiểm tra mục tiêu lọt vào zone
 local function checkTargetInZone()
     if not act or not stb or not Tar or not Tar.Character then return false end 
     local tr = Tar.Character:FindFirstChild("HumanoidRootPart")
@@ -108,7 +119,6 @@ local function checkTargetInZone()
     return false 
 end
 
--- Vòng lặp đè đầu đánh và combo kết liễu
 task.spawn(function()
     while true do 
         task.wait(0.02)
@@ -124,12 +134,12 @@ task.spawn(function()
                 r.CFrame = CFrame.new(tr.Position + Vector3.new(0, 2.5, 0), tr.Position)
                 
                 if th.Health > 2 then 
-                    EventRemote:FireServer({[1] = {["Event"] = "Hit", ["ClientHitbox"] = {}}})
+                    EventRemote:FireServer({ = {["Event"] = "Hit", ["ClientHitbox"] = {}}})
                 else 
-                    EventRemote:FireServer({[1] = {["Event"] = "Stomp"}})
-                    EventRemote:FireServer({[1] = {["Event"] = "Stomp"}})
-                    EventRemote:FireServer({[1] = {["Event"] = "Hit", ["ClientHitbox"] = {}}})
-                    EventRemote:FireServer({[1] = {["Event"] = "Hit", ["ClientHitbox"] = {}}})
+                    EventRemote:FireServer({ = {["Event"] = "Stomp"}})
+                    EventRemote:FireServer({ = {["Event"] = "Stomp"}})
+                    EventRemote:FireServer({ = {["Event"] = "Hit", ["ClientHitbox"] = {}}})
+                    EventRemote:FireServer({ = {["Event"] = "Hit", ["ClientHitbox"] = {}}})
                 end 
             end
         else 
@@ -146,128 +156,36 @@ task.spawn(function()
 end)
 
 player.CharacterAdded:Connect(function()
-    if act then 
-        task.wait(1) 
-        fly(FIXED_POS) 
-    end 
+    if act then task.wait(1) fly(FIXED_POS) end
 end)
 
--- ==========================================================
--- KHỞI TẠO GIAO DIỆN KHÔNG LỖI - HIỆN TRÊN EXECUTOR 100%
--- ==========================================================
-if CoreGui:FindFirstChild("EX_TG_GUI") then
-    CoreGui["EX_TG_GUI"]:Destroy()
-end
+-- GIAO DIỆN KHÔNG LỖI - CORE_GUI HIỆN 100%
+if CoreGui:FindFirstChild("EX_TG_GUI") then CoreGui["EX_TG_GUI"]:Destroy() end
+local g = Instance.new("ScreenGui") g.Name = "EX_TG_GUI" g.ResetOnSpawn = false g.Parent = CoreGui
+local mf = Instance.new("Frame") mf.Size = UDim2.new(0, 220, 0, 220) mf.Position = UDim2.new(0.5, -110, 0.5, -110) mf.BackgroundColor3 = Color3.fromRGB(20, 20, 25) mf.Active = true mf.Draggable = true mf.Parent = g Instance.new("UICorner", mf)
+local lbl = Instance.new("TextLabel") lbl.Size = UDim2.new(1, 0, 0, 25) lbl.Text = "🔍 Chọn mục tiêu..." lbl.TextColor3 = Color3.new(1, 1, 1) lbl.BackgroundTransparency = 1 lbl.Font = Enum.Font.GothamBold lbl.TextSize = 12 lbl.Parent = mf
+local sf = Instance.new("ScrollingFrame") sf.Size = UDim2.new(1, -20, 0, 120) sf.Position = UDim2.new(0, 10, 0, 30) sf.BackgroundColor3 = Color3.fromRGB(15, 15, 20) sf.BorderSizePixel = 0 sf.ScrollBarThickness = 4 sf.Parent = mf local ll = Instance.new("UIListLayout", sf) ll.Padding = UDim.new(0, 2)
+local btn = Instance.new("TextButton") btn.Size = UDim2.new(1, -20, 0, 35) btn.Position = UDim2.new(0, 10, 1, -45) btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80) btn.Text = "▶ START INJECT" btn.TextColor3 = Color3.new(1, 1, 1) btn.Font = Enum.Font.GothamBold btn.TextSize = 13 btn.Parent = mf Instance.new("UICorner", btn)
 
-local g = Instance.new("ScreenGui")
-g.Name = "EX_TG_GUI"
-g.ResetOnSpawn = false
-g.Parent = CoreGui
-
-local mf = Instance.new("Frame")
-mf.Size = UDim2.new(0, 220, 0, 220)
-mf.Position = UDim2.new(0.5, -110, 0.5, -110)
-mf.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-mf.Active = true
-mf.Draggable = true
-mf.Parent = g
-Instance.new("UICorner", mf)
-
-local lbl = Instance.new("TextLabel")
-lbl.Size = UDim2.new(1, 0, 0, 25)
-lbl.Text = "🔍 Chọn mục tiêu..."
-lbl.TextColor3 = Color3.new(1, 1, 1)
-lbl.BackgroundTransparency = 1
-lbl.Font = Enum.Font.GothamBold
-lbl.TextSize = 12
-lbl.Parent = mf
-
-local sf = Instance.new("ScrollingFrame")
-sf.Size = UDim2.new(1, -20, 0, 120)
-sf.Position = UDim2.new(0, 10, 0, 30)
-sf.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-sf.BorderSizePixel = 0
-sf.ScrollBarThickness = 4
-sf.Parent = mf
-local ll = Instance.new("UIListLayout", sf)
-ll.Padding = UDim.new(0, 2)
-
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -20, 0, 35)
-btn.Position = UDim2.new(0, 10, 1, -45)
-btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-btn.Text = "▶ START INJECT"
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 13
-btn.Parent = mf
-Instance.new("UICorner", btn)
-
--- Logic nút bấm điều khiển
 btn.MouseButton1Click:Connect(function()
     if not act then
-        act = true
-        btn.Text = "🛑 STOP SYSTEM"
-        btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        act = true btn.Text = "🛑 STOP SYSTEM" btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
         task.spawn(function() fly(FIXED_POS) end)
     else
-        act = false
-        stb = false
-        En = false
-        atk = false
-        btn.Text = "▶ START INJECT"
-        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        local _, h, r = getChar()
-        if h and r then h:MoveTo(r.Position) end
+        act = false stb = false En = false atk = false btn.Text = "▶ START INJECT" btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        local _, h, r = getChar() if h and r then h:MoveTo(r.Position) end
     end
 end)
 
--- Cập nhật danh sách người chơi
 local function up()
-    for _, v in pairs(sf:GetChildren()) do
-        if v:IsA("TextButton") then v:Destroy() end
-    end
+    for _, v in pairs(sf:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
     for _, pl in pairs(Players:GetPlayers()) do
         if pl ~= player then
-            local b = Instance.new("TextButton")
-            b.Size = UDim2.new(1, -6, 0, 24)
-            b.BackgroundColor3 = (Tar == pl) and Color3.fromRGB(120, 0, 150) or Color3.fromRGB(35, 35, 40)
-            b.Text = "  " .. pl.DisplayName
-            b.TextColor3 = Color3.new(1, 1, 1)
-            b.Font = Enum.Font.Gotham
-            b.TextSize = 11
-            b.TextXAlignment = Enum.TextXAlignment.Left
-            b.Parent = sf
-            Instance.new("UICorner", b)
-            
-            b.MouseButton1Click:Connect(function()
-                Tar = pl
-                up()
-            end)
+            local b = Instance.new("TextButton") b.Size = UDim2.new(1, -6, 0, 24) b.BackgroundColor3 = (Tar == pl) and Color3.fromRGB(120, 0, 150) or Color3.fromRGB(35, 35, 40) b.Text = "  " .. pl.DisplayName b.TextColor3 = Color3.new(1, 1, 1) b.Font = Enum.Font.Gotham b.TextSize = 11 b.TextXAlignment = Enum.TextXAlignment.Left b.Parent = sf Instance.new("UICorner", b)
+            b.MouseButton1Click:Connect(function() Tar = pl up() end)
         end
     end
     sf.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 5)
 end
-
-Players.PlayerAdded:Connect(up)
-Players.PlayerRemoving:Connect(function(pl)
-    if Tar == pl then Tar = nil end
-    up()
-end)
-up()
-
--- Vòng lặp cập nhật chữ trạng thái
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if Tar and Tar.Character and Tar.Character:FindFirstChild("Humanoid") then
-            if atk then
-                lbl.Text = "⚔️ Đang đấm: " .. Tar.DisplayName
-            else
-                lbl.Text = "🎯 Đợi mục tiêu vào Zone..."
-            end
-        else
-            lbl.Text = act and "📡 Hệ thống sẵn sàng" or "❌ Đang dừng hoạt động"
-        end
-    end
-end)
+Players.PlayerAdded:Connect(up) Players.PlayerRemoving:Connect(function(pl) if Tar == pl then Tar = nil end up() end) up()
+task.spawn(function() while true do task.wait(0.5) if Tar and Tar.Character and Tar.Character:FindFirstChild("Humanoid") then if atk then lbl.Text = "⚔️ Đang đấm: " .. Tar.DisplayName else lbl.Text = "🎯 Đợi mục tiêu vào Zone..." end else lbl.Text = act and "📡 Hệ thống sẵn sàng" or "❌ Đang dừng hoạt động" end end end)
