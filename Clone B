@@ -1,4 +1,4 @@
---code số 30b: CLONE B - FIX KẸT CÁT KHI BAY + GIỮ NOCLIP
+--code số 30b: CLONE B - FIX VĂNG KHI TỚI NƠI + GIỮ NOCLIP
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -65,8 +65,11 @@ local function flyToFix()
     enableNoclip(c)
     r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
+    r.Anchored = true
+    task.wait(0.1)
+    r.Anchored = false
+    
     local lastPos = r.Position
-    local stuckTime = 0
     local stuckCount = 0
     
     while act and En and r and r.Parent do
@@ -87,10 +90,9 @@ local function flyToFix()
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
         end
         
-        -- NẾU BỊ KẸT QUÁ LÂU -> RESET VỊ TRÍ
         if (r.Position - lastPos).Magnitude < 0.5 then
             stuckCount = stuckCount + 1
-            if stuckCount >= 20 then
+            if stuckCount >= 15 then
                 r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
                 r.Velocity = Vector3.zero
                 stuckCount = 0
@@ -106,18 +108,24 @@ local function flyToFix()
     En = false
     r.Velocity = Vector3.zero
     
-    -- BAY LÊN MẶT ĐẤT
+    -- KHÓA VỊ TRÍ TRƯỚC KHI TRỒI LÊN
     if r and r.Parent then
+        r.Anchored = true
+        task.wait(0.05)
+        
         local targetY = tg.Y
-        enableNoclip(c)
-        r.Velocity = Vector3.new(0, 60, 0)
-        task.wait(0.2)
-        while act and r and r.Parent and r.Position.Y < targetY do
-            r.Velocity = Vector3.new(0, 60, 0)
-            task.wait()
+        local startY = r.Position.Y
+        
+        for t = 0, 1, 0.02 do
+            if not act or not r or not r.Parent then break end
+            local newY = startY + (targetY - startY) * t
+            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
+            task.wait(0.02)
         end
+        
+        r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
+        r.Anchored = false
         r.Velocity = Vector3.zero
-        r.CFrame = CFrame.new(tg.X, targetY, tg.Z)
         task.wait(0.1)
     end
     
