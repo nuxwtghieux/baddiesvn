@@ -1,4 +1,4 @@
---code số 32: BAY ĐẾN TỌA ĐỘ + ĐỨNG IM + AUTO RESPAWN BAY LẠI (DELTAX MOBILE)
+--code số 33: BAY ĐẾN TỌA ĐỘ + NOCLIP KHI BAY + TẮT NOCLIP KHI TỚI + AUTO RESPAWN BAY LẠI (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -15,6 +15,7 @@ local STUCK_TIMEOUT = 10
 local MAX_SPEED = 18
 
 local act, En, noc, Y = false, false, false, nil
+local noclipConnection = nil
 
 local function getChar()
     local c = player.Character
@@ -22,19 +23,24 @@ local function getChar()
     return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
 end
 
-local function enableNoclip(c)
+local function enableNoclip()
+    if noclipConnection then noclipConnection:Disconnect() end
     noc = true
-    if not c then return end
-    for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = false end
-    end
+    noclipConnection = RunService.Stepped:Connect(function()
+        local c = player.Character
+        if c and noc then
+            for _, v in pairs(c:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = false end
+            end
+        end
+    end)
 end
 
-local function disableNoclip(c)
+local function disableNoclip()
     noc = false
-    if not c then return end
-    for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = true end
+    if noclipConnection then
+        noclipConnection:Disconnect()
+        noclipConnection = nil
     end
 end
 
@@ -56,10 +62,10 @@ local function flyToFix()
     En = true
     local c, h, r = getChar()
     if not r or not h then return end
+    enableNoclip()
     local tg = FIX_STAND
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
-    enableNoclip(c)
     r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
     local lastPos = r.Position
@@ -104,7 +110,7 @@ local function flyToFix()
         r.Velocity = Vector3.zero
         task.wait(0.2)
     end
-    disableNoclip(c)
+    disableNoclip()
     h.WalkSpeed = 0
     Y = nil
 end
@@ -186,9 +192,18 @@ statusLabel.BackgroundTransparency = 1
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextSize = 10
 
+local noclipLabel = Instance.new("TextLabel", body)
+noclipLabel.Size = UDim2.new(1, -20, 0, 18)
+noclipLabel.Position = UDim2.new(0, 10, 0, 66)
+noclipLabel.Text = "Noclip: TAT"
+noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
+noclipLabel.BackgroundTransparency = 1
+noclipLabel.Font = Enum.Font.Gotham
+noclipLabel.TextSize = 9
+
 local cpyBtn = Instance.new("TextButton", body)
 cpyBtn.Size = UDim2.new(1, -20, 0, 26)
-cpyBtn.Position = UDim2.new(0, 10, 0, 72)
+cpyBtn.Position = UDim2.new(0, 10, 0, 90)
 cpyBtn.Text = "COPY TOA DO"
 cpyBtn.TextColor3 = Color3.new(1, 1, 1)
 cpyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
@@ -198,7 +213,7 @@ Instance.new("UICorner", cpyBtn).CornerRadius = UDim.new(0, 4)
 
 local flyBtn = Instance.new("TextButton", body)
 flyBtn.Size = UDim2.new(1, -20, 0, 26)
-flyBtn.Position = UDim2.new(0, 10, 0, 104)
+flyBtn.Position = UDim2.new(0, 10, 0, 122)
 flyBtn.Text = "START"
 flyBtn.TextColor3 = Color3.new(1, 1, 1)
 flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
@@ -214,6 +229,7 @@ end)
 cls.MouseButton1Click:Connect(function()
     act = false
     En = false
+    disableNoclip()
     g:Destroy()
 end)
 
@@ -227,21 +243,28 @@ flyBtn.MouseButton1Click:Connect(function()
         flyBtn.Text = "STOP"
         flyBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
         statusLabel.Text = "Trang thai: DANG BAY..."
-        statusLabel.TextColor3 = Color3.new(0, 1, 0)
+        statusLabel.TextColor3 = Color3.new(1, 1, 0)
+        noclipLabel.Text = "Noclip: BAT"
+        noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.spawn(function()
             flyToFix()
             if act then
                 statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
                 statusLabel.TextColor3 = Color3.new(0, 1, 0)
+                noclipLabel.Text = "Noclip: TAT"
+                noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
             end
         end)
     else
         act = false
         En = false
+        disableNoclip()
         flyBtn.Text = "START"
         flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
         statusLabel.Text = "Trang thai: DUNG"
         statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
+        noclipLabel.Text = "Noclip: TAT"
+        noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
         local _, h, r = getChar()
         if h and r then
             h.WalkSpeed = 16
@@ -254,12 +277,16 @@ player.CharacterAdded:Connect(function()
     if act then
         statusLabel.Text = "Trang thai: RESPAWN - DANG BAY LAI..."
         statusLabel.TextColor3 = Color3.new(1, 1, 0)
+        noclipLabel.Text = "Noclip: BAT"
+        noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.wait(1)
         task.spawn(function()
             flyToFix()
             if act then
                 statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
                 statusLabel.TextColor3 = Color3.new(0, 1, 0)
+                noclipLabel.Text = "Noclip: TAT"
+                noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
             end
         end)
     end
