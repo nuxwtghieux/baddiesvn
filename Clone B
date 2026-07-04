@@ -1,4 +1,4 @@
---code số 30b: CLONE B - FIX HOÀN TOÀN KHÔNG TELE + RESPAWN
+--code số 30b: CLONE B - GIỐNG HỆT CLONE A (BAY + ĐỨNG IM)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -17,7 +17,6 @@ local stb = false
 local noc = false
 local Y = nil
 local En = false
-local isFlying = false
 
 local function get()
     local c = player.Character
@@ -55,28 +54,24 @@ local function disableFreefall(h, r)
 end
 
 local function flyToFix()
-    if not act or isFlying then return end
-    isFlying = true
+    if not act then return end
     stb = false
     En = true
     local c, h, r = get()
-    if not r or not h then isFlying = false return end
-    
+    if not r or not h then return end
     local tg = FIX_STAND
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
     enableNoclip(c)
-    
-    -- DI CHUYỂN ĐẾN VỊ TRÍ X,Z DƯỚI LÒNG ĐẤT
     r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
     local lastPos = r.Position
     local stuckTime = 0
-    
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
-        if (flatCur - flatTgt).Magnitude <= 3 then break end
+        local dist = (flatCur - flatTgt).Magnitude
+        if dist <= 5 then break end
         local dir = (flatTgt - flatCur).Unit
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
         if math.abs(r.Position.Y - Y) > 0.5 then
@@ -88,69 +83,42 @@ local function flyToFix()
         end
         if (r.Position - lastPos).Magnitude < 0.5 then
             stuckTime = stuckTime + 0.1
-            if stuckTime >= STUCK_TIMEOUT then break end
+            if stuckTime >= STUCK_TIMEOUT then
+                break
+            end
         else
             stuckTime = 0
         end
         lastPos = r.Position
         task.wait()
     end
-    
-    -- TRỒI LÊN MẶT ĐẤT TỪ TỪ (KHÔNG TELE)
+    En = false
     r.Velocity = Vector3.zero
     if r and r.Parent then
+        disableFreefall(h, r)
+        task.wait(0.1)
         local startY = r.Position.Y
         local targetY = tg.Y
-        -- Trồi lên từ từ
-        for t = 0, 1, 0.02 do
+        for t = 0, 1, 0.05 do
             if not act or not r or not r.Parent then break end
             local newY = startY + (targetY - startY) * t
-            local smooth = math.sin(t * math.pi / 2) -- Easing cho mượt
-            local finalY = startY + (targetY - startY) * smooth
-            r.CFrame = CFrame.new(r.Position.X, finalY, r.Position.Z)
+            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
             r.Velocity = Vector3.zero
             task.wait(0.02)
         end
-        -- Đặt chính xác
-        if r and r.Parent then
-            r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
-            r.Velocity = Vector3.zero
-        end
-    end
-    
-    En = false
-    if r and r.Parent then
-        disableFreefall(h, r)
+        r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
+        r.Velocity = Vector3.zero
+        task.wait(0.2)
     end
     disableNoclip(c)
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
-    isFlying = false
 end
 
--- GIỮ VỊ TRÍ KHI Ở NHÀ
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if act and stb and not En and not isFlying then
-            local _, h, r = get()
-            if r and h then
-                local dist = (r.Position - FIX_STAND).Magnitude
-                if dist > 5 then
-                    h:MoveTo(FIX_STAND)
-                else
-                    h:MoveTo(Vector3.zero)
-                end
-            end
-        end
-    end
-end)
-
--- RESPAWN: BAY LẠI TỪ ĐẦU
 player.CharacterAdded:Connect(function()
     if act then
-        task.wait(1.5)
+        task.wait(1)
         flyToFix()
     end
 end)
@@ -245,7 +213,6 @@ end)
 
 cls.MouseButton1Click:Connect(function()
     act, En = false, false
-    isFlying = false
     g:Destroy()
 end)
 
@@ -263,7 +230,6 @@ btn.MouseButton1Click:Connect(function()
         task.spawn(function() flyToFix() end)
     else
         act, En = false, false
-        isFlying = false
         btn.Text = "▶ START B"
         btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
         status.Text = "🔴 Đang tắt"
@@ -273,20 +239,14 @@ btn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Cập nhật status
 task.spawn(function()
     while g and g.Parent do
-        if act then
-            if isFlying then
-                status.Text = "🟡 Đang bay..."
-                status.TextColor3 = Color3.new(1, 1, 0)
-            elseif stb then
-                status.Text = "🟢 Đã sẵn sàng tại FIX"
-                status.TextColor3 = Color3.new(0.3, 1, 0.3)
-            else
-                status.Text = "🟠 Đang khởi tạo..."
-                status.TextColor3 = Color3.new(1, 0.5, 0)
-            end
+        if act and stb then
+            status.Text = "🟢 Đã sẵn sàng tại FIX"
+            status.TextColor3 = Color3.new(0.3, 1, 0.3)
+        elseif act then
+            status.Text = "🟡 Đang bay..."
+            status.TextColor3 = Color3.new(1, 1, 0)
         end
         task.wait(0.5)
     end
