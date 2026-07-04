@@ -1,139 +1,25 @@
---code số 30: CLONE A - LUÔN HIT + KHI MÁU < 3 THÌ TIẾN SÁT STOMP
+--code số 32: BAY ĐẾN TỌA ĐỘ + ĐỨNG IM + AUTO RESPAWN BAY LẠI (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local player = Players.LocalPlayer
-local PlayerGui = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui")
+local PlayerGui = player:WaitForChild("PlayerGui")
 
-pcall(function() if PlayerGui:FindFirstChild("A_GUI") then PlayerGui.A_GUI:Destroy() end end)
-
-task.spawn(function()
-    while true do
-        pcall(function()
-            for _, v in pairs(PlayerGui:GetDescendants()) do
-                if v:IsA("Frame") then
-                    local n = v.Name:lower()
-                    if n:find("notif") or n:find("error") or n:find("alert") or n:find("message") then
-                        v.Visible = false
-                        v:Destroy()
-                    end
-                end
-            end
-        end)
-        task.wait(0.1)
-    end
-end)
+pcall(function() if PlayerGui:FindFirstChild("FLY_GUI") then PlayerGui.FLY_GUI:Destroy() end end)
 
 local FIX = Vector3.new(563.2, 3.9, -20.8)
-local FIX_STAND = Vector3.new(FIX.X + 3, FIX.Y, FIX.Z)
-local RAD = 50
-local FLY_SPEED = 200
+local FIX_STAND = FIX + Vector3.new(3, 0, 0)
 local HEAD_OFFSET = 8
-local MAX_SPEED = 18
+local FLY_SPEED = 200
 local STUCK_TIMEOUT = 10
-local HIT_RANGE = 4
-local STOMP_RANGE = 1.5
-local HP_THRESHOLD = 3
+local MAX_SPEED = 18
 
-local act = false
-local stb = false
-local atk = false
-local noc = false
-local Y = nil
-local En = false
-local Tar = nil
-local isMoving = false
-local moveTask = nil
+local act, En, noc, Y = false, false, false, nil
 
-local function getMobileStompButton()
-    for _, v in ipairs(PlayerGui:GetDescendants()) do
-        if v.Name == "Stomp" and v.Parent and v.Parent.Name == "MobileButtons" then
-            if v:IsA("TextButton") or v:IsA("ImageButton") then
-                return v
-            end
-        end
-    end
-    return nil
-end
-
-local function clickButton(btn)
-    if not btn then return false end
-    pcall(function()
-        btn:FireEvent("MouseButton1Click")
-        btn:Activate()
-        local pos = btn.AbsolutePosition
-        local size = btn.AbsoluteSize
-        if pos.X > 0 and pos.Y > 0 then
-            local x = pos.X + size.X / 2
-            local y = pos.Y + size.Y / 2
-            if btn.InputBegan then
-                btn.InputBegan:Fire({
-                    UserInputType = Enum.UserInputType.MouseButton1,
-                    Position = Vector2.new(x, y)
-                })
-            end
-        end
-    end)
-    return true
-end
-
-local function pressKey(key)
-    pcall(function()
-        VirtualInputManager:SendKeyEvent(true, key, false, game)
-        task.wait(0.01)
-        VirtualInputManager:SendKeyEvent(false, key, false, game)
-    end)
-end
-
-local function get()
+local function getChar()
     local c = player.Character
     if not c then return nil, nil, nil end
     return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
-end
-
-local function equipFist()
-    local c = player.Character
-    if not c then return false end
-    local h = c:FindFirstChild("Humanoid")
-    if not h then return false end
-    for _, v in pairs(c:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Fist" then
-            return true
-        end
-    end
-    local bp = player:FindFirstChild("Backpack")
-    if bp then
-        local fist = bp:FindFirstChild("Fist")
-        if fist then
-            h:EquipTool(fist)
-            task.wait(0.02)
-            return true
-        end
-    end
-    return false
-end
-
-local function doHit()
-    equipFist()
-    local c = player.Character
-    if c then
-        local fist = c:FindFirstChild("Fist")
-        if fist and fist:IsA("Tool") then
-            pcall(function() fist:Activate() end)
-        end
-    end
-end
-
-local function doGrab()
-    pressKey(Enum.KeyCode.G)
-end
-
-local function doStomp()
-    pressKey(Enum.KeyCode.E)
-    local btn = getMobileStompButton()
-    if btn then clickButton(btn) end
-    doHit()
 end
 
 local function enableNoclip(c)
@@ -162,14 +48,13 @@ local function disableFreefall(h, r)
     h.AutoRotate = true
     workspace.Gravity = 196.2
     if r then r.Velocity = Vector3.zero end
-    h.WalkSpeed = MAX_SPEED
+    h.WalkSpeed = 0
 end
 
 local function flyToFix()
     if not act then return end
-    stb = false
     En = true
-    local c, h, r = get()
+    local c, h, r = getChar()
     if not r or not h then return end
     local tg = FIX_STAND
     Y = tg.Y - HEAD_OFFSET
@@ -220,164 +105,19 @@ local function flyToFix()
         task.wait(0.2)
     end
     disableNoclip(c)
-    h.WalkSpeed = MAX_SPEED
+    h.WalkSpeed = 0
     Y = nil
-    stb = true
 end
 
-local function moveToTarget(tr)
-    if moveTask then task.cancel(moveTask) end
-    isMoving = true
-    moveTask = task.spawn(function()
-        local _, h, r = get()
-        if not h or not r then isMoving = false return end
-        h.WalkSpeed = MAX_SPEED
-        while act and stb and isMoving and r and r.Parent and tr and tr.Parent do
-            if not Tar or not Tar.Character then break end
-            local tr2 = Tar.Character:FindFirstChild("HumanoidRootPart")
-            if not tr2 then break end
-            if (FIX - tr2.Position).Magnitude > RAD then break end
-            local dist = (r.Position - tr2.Position).Magnitude
-            if dist <= HIT_RANGE then break end
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr2.Position.X, r.Position.Y, tr2.Position.Z))
-            h:MoveTo(tr2.Position)
-            task.wait(0.05)
-        end
-        isMoving = false
-        moveTask = nil
-    end)
-end
-
-local function moveToStompRange(tr)
-    if moveTask then task.cancel(moveTask) end
-    isMoving = true
-    moveTask = task.spawn(function()
-        local _, h, r = get()
-        if not h or not r then isMoving = false return end
-        h.WalkSpeed = MAX_SPEED
-        while act and stb and isMoving and r and r.Parent and tr and tr.Parent do
-            if not Tar or not Tar.Character then break end
-            local tr2 = Tar.Character:FindFirstChild("HumanoidRootPart")
-            if not tr2 then break end
-            if (FIX - tr2.Position).Magnitude > RAD then break end
-            local dist = (r.Position - tr2.Position).Magnitude
-            if dist <= STOMP_RANGE then break end
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr2.Position.X, r.Position.Y, tr2.Position.Z))
-            h:MoveTo(tr2.Position)
-            task.wait(0.05)
-        end
-        isMoving = false
-        moveTask = nil
-    end)
-end
-
-local function stopMoving()
-    isMoving = false
-    if moveTask then
-        task.cancel(moveTask)
-        moveTask = nil
-    end
-end
-
-task.spawn(function()
-    while true do
-        task.wait(0.03)
-        
-        if not act or not stb then
-            stopMoving()
-            atk = false
-            continue
-        end
-        
-        if not Tar then
-            stopMoving()
-            atk = false
-            continue
-        end
-        
-        local tc = Tar.Character
-        if not tc then
-            stopMoving()
-            atk = false
-            continue
-        end
-        
-        local tr = tc:FindFirstChild("HumanoidRootPart")
-        local th = tc:FindFirstChild("Humanoid")
-        
-        if not tr or not th or th.Health <= 0 then
-            stopMoving()
-            atk = false
-            continue
-        end
-        
-        if (FIX - tr.Position).Magnitude > RAD then
-            stopMoving()
-            atk = false
-            continue
-        end
-        
-        local _, _, r = get()
-        if not r then
-            atk = false
-            continue
-        end
-        
-        local dist = (r.Position - tr.Position).Magnitude
-        
-        -- MÁU < 3: TIẾN SÁT 1.5 STUD ĐỂ STOMP + HIT
-        if th.Health < HP_THRESHOLD then
-            if dist > STOMP_RANGE then
-                atk = true
-                if not isMoving then
-                    moveToStompRange(tr)
-                end
-            else
-                stopMoving()
-                atk = true
-                r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr.Position.X, r.Position.Y, tr.Position.Z))
-                equipFist()
-                doStomp()
-                task.wait(0.02)
-            end
-        -- MÁU >= 3: HIT + GRAB
-        else
-            if dist > HIT_RANGE then
-                atk = true
-                if not isMoving then
-                    moveToTarget(tr)
-                end
-            else
-                stopMoving()
-                atk = true
-                r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr.Position.X, r.Position.Y, tr.Position.Z))
-                equipFist()
-                doHit()
-                doGrab()
-                task.wait(0.02)
-            end
-        end
-    end
-end)
-
-player.CharacterAdded:Connect(function()
-    if act then
-        stopMoving()
-        task.wait(1)
-        flyToFix()
-    end
-end)
-
--- GUI
 local g = Instance.new("ScreenGui")
-g.Name = "A_GUI"
+g.Name = "FLY_GUI"
 g.ResetOnSpawn = false
 g.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 g.Parent = PlayerGui
 
 local mf = Instance.new("Frame", g)
-mf.Size = UDim2.new(0, 220, 0, 240)
-mf.Position = UDim2.new(0, 20, 0.5, -120)
+mf.Size = UDim2.new(0, 200, 0, 150)
+mf.Position = UDim2.new(0, 20, 0.5, -75)
 mf.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mf.BackgroundTransparency = 0.15
 mf.BorderSizePixel = 0
@@ -394,17 +134,17 @@ Instance.new("UICorner", head).CornerRadius = UDim.new(0, 14)
 local title = Instance.new("TextLabel", head)
 title.Size = UDim2.new(0.5, 0, 1, 0)
 title.Position = UDim2.new(0.05, 0, 0, 0)
-title.Text = "CLONE A SYSTEM"
+title.Text = "BAY + DUNG IM"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
-title.TextSize = 12
+title.TextSize = 11
 title.BackgroundTransparency = 1
 title.TextXAlignment = Enum.TextXAlignment.Left
 
 local cls = Instance.new("TextButton", head)
 cls.Size = UDim2.new(0, 22, 0, 22)
 cls.Position = UDim2.new(1, -28, 0, 5)
-cls.Text = "✕"
+cls.Text = "x"
 cls.TextColor3 = Color3.new(1, 1, 1)
 cls.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
 cls.Font = Enum.Font.GothamBold
@@ -414,7 +154,7 @@ Instance.new("UICorner", cls).CornerRadius = UDim.new(0, 4)
 local min = Instance.new("TextButton", head)
 min.Size = UDim2.new(0, 22, 0, 22)
 min.Position = UDim2.new(1, -54, 0, 5)
-min.Text = "─"
+min.Text = "-"
 min.TextColor3 = Color3.new(1, 1, 1)
 min.BackgroundColor3 = Color3.fromRGB(200, 150, 30)
 min.Font = Enum.Font.GothamBold
@@ -426,126 +166,106 @@ body.Size = UDim2.new(1, 0, 1, -32)
 body.Position = UDim2.new(0, 0, 0, 32)
 body.BackgroundTransparency = 1
 
-local lbl = Instance.new("TextLabel", body)
-lbl.Size = UDim2.new(1, 0, 0, 24)
-lbl.Position = UDim2.new(0, 0, 0, 4)
-lbl.Text = "🔍 Chọn mục tiêu..."
-lbl.TextColor3 = Color3.new(1, 1, 1)
-lbl.BackgroundTransparency = 1
-lbl.Font = Enum.Font.GothamBold
-lbl.TextSize = 11
+local posLabel = Instance.new("TextLabel", body)
+posLabel.Size = UDim2.new(1, -20, 0, 36)
+posLabel.Position = UDim2.new(0, 10, 0, 4)
+posLabel.Text = "Toa do: " .. FIX.X .. ", " .. FIX.Y .. ", " .. FIX.Z
+posLabel.TextColor3 = Color3.new(1, 1, 1)
+posLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+posLabel.Font = Enum.Font.Gotham
+posLabel.TextSize = 10
+posLabel.TextWrapped = true
+Instance.new("UICorner", posLabel).CornerRadius = UDim.new(0, 4)
 
-local sf = Instance.new("ScrollingFrame", body)
-sf.Size = UDim2.new(1, -20, 0, 110)
-sf.Position = UDim2.new(0, 10, 0, 32)
-sf.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-sf.BorderSizePixel = 0
-sf.ScrollBarThickness = 4
-sf.ClipsDescendants = true
-sf.CanvasSize = UDim2.new(0, 0, 0, 0)
+local statusLabel = Instance.new("TextLabel", body)
+statusLabel.Size = UDim2.new(1, -20, 0, 22)
+statusLabel.Position = UDim2.new(0, 10, 0, 44)
+statusLabel.Text = "Trang thai: DUNG"
+statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 10
 
-local ll = Instance.new("UIListLayout", sf)
-ll.Padding = UDim.new(0, 2)
+local cpyBtn = Instance.new("TextButton", body)
+cpyBtn.Size = UDim2.new(1, -20, 0, 26)
+cpyBtn.Position = UDim2.new(0, 10, 0, 72)
+cpyBtn.Text = "COPY TOA DO"
+cpyBtn.TextColor3 = Color3.new(1, 1, 1)
+cpyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+cpyBtn.Font = Enum.Font.GothamBold
+cpyBtn.TextSize = 11
+Instance.new("UICorner", cpyBtn).CornerRadius = UDim.new(0, 4)
 
-local btn = Instance.new("TextButton", body)
-btn.Size = UDim2.new(0, 134, 0, 32)
-btn.Position = UDim2.new(0, 10, 1, -42)
-btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-btn.Text = "▶ START SYSTEM"
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 11
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-
-local cpy = Instance.new("TextButton", body)
-cpy.Size = UDim2.new(0, 56, 0, 32)
-cpy.Position = UDim2.new(1, -66, 1, -42)
-cpy.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-cpy.Text = "📋 COPY"
-cpy.TextColor3 = Color3.new(1, 1, 1)
-cpy.Font = Enum.Font.GothamBold
-cpy.TextSize = 10
-Instance.new("UICorner", cpy).CornerRadius = UDim.new(0, 4)
+local flyBtn = Instance.new("TextButton", body)
+flyBtn.Size = UDim2.new(1, -20, 0, 26)
+flyBtn.Position = UDim2.new(0, 10, 0, 104)
+flyBtn.Text = "START"
+flyBtn.TextColor3 = Color3.new(1, 1, 1)
+flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+flyBtn.Font = Enum.Font.GothamBold
+flyBtn.TextSize = 11
+Instance.new("UICorner", flyBtn).CornerRadius = UDim.new(0, 4)
 
 min.MouseButton1Click:Connect(function()
     body.Visible = not body.Visible
-    mf.Size = body.Visible and UDim2.new(0, 220, 0, 240) or UDim2.new(0, 220, 0, 32)
+    mf.Size = body.Visible and UDim2.new(0, 200, 0, 150) or UDim2.new(0, 200, 0, 32)
 end)
 
 cls.MouseButton1Click:Connect(function()
-    act, stb, En, atk = false, false, false, false
-    stopMoving()
+    act = false
+    En = false
     g:Destroy()
 end)
 
-cpy.MouseButton1Click:Connect(function()
-    if Tar then pcall(function() setclipboard(Tar.Name) end) end
+cpyBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard(FIX.X .. ", " .. FIX.Y .. ", " .. FIX.Z) end)
 end)
 
-btn.MouseButton1Click:Connect(function()
+flyBtn.MouseButton1Click:Connect(function()
     if not act then
         act = true
-        btn.Text = "🛑 STOP SYSTEM"
-        btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        task.spawn(function() flyToFix() end)
+        flyBtn.Text = "STOP"
+        flyBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        statusLabel.Text = "Trang thai: DANG BAY..."
+        statusLabel.TextColor3 = Color3.new(0, 1, 0)
+        task.spawn(function()
+            flyToFix()
+            if act then
+                statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
+                statusLabel.TextColor3 = Color3.new(0, 1, 0)
+            end
+        end)
     else
-        act, stb, En, atk = false, false, false, false
-        stopMoving()
-        btn.Text = "▶ START SYSTEM"
-        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        local _, h, r = get()
-        if h and r then h:MoveTo(r.Position) end
-    end
-end)
-
-local function up()
-    for _, v in pairs(sf:GetChildren()) do
-        if v:IsA("TextButton") then v:Destroy() end
-    end
-    for _, pl in pairs(Players:GetPlayers()) do
-        if pl ~= player then
-            local b = Instance.new("TextButton", sf)
-            b.Size = UDim2.new(1, -6, 0, 24)
-            b.BackgroundColor3 = (Tar == pl) and Color3.fromRGB(120, 0, 150) or Color3.fromRGB(35, 35, 40)
-            b.Text = "  " .. pl.Name
-            b.TextColor3 = Color3.new(1, 1, 1)
-            b.Font = Enum.Font.Gotham
-            b.TextSize = 11
-            b.TextXAlignment = Enum.TextXAlignment.Left
-            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
-            local ref = pl
-            b.MouseButton1Click:Connect(function()
-                Tar = ref
-                up()
-            end)
+        act = false
+        En = false
+        flyBtn.Text = "START"
+        flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        statusLabel.Text = "Trang thai: DUNG"
+        statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
+        local _, h, r = getChar()
+        if h and r then
+            h.WalkSpeed = 16
+            h:MoveTo(r.Position)
         end
     end
-    sf.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 5)
-end
-
-Players.PlayerAdded:Connect(up)
-Players.PlayerRemoving:Connect(function(pl)
-    if Tar == pl then Tar = nil end
-    up()
 end)
-up()
 
-task.spawn(function()
-    while g and g.Parent do
-        if Tar and Tar.Character and Tar.Character:FindFirstChild("Humanoid") then
-            local th = Tar.Character:FindFirstChild("Humanoid")
-            local status = th.Health < HP_THRESHOLD and " [STOMP]" or " [HIT+GRAB]"
-            lbl.Text = atk and "⚔️ " .. Tar.Name .. " (" .. math.floor(th.Health) .. " HP)" .. status or "🎯 Đợi mục tiêu vào Zone..."
-        else
-            lbl.Text = act and "📡 Sẵn sàng" or "❌ Dừng"
-        end
-        task.wait(0.5)
+player.CharacterAdded:Connect(function()
+    if act then
+        statusLabel.Text = "Trang thai: RESPAWN - DANG BAY LAI..."
+        statusLabel.TextColor3 = Color3.new(1, 1, 0)
+        task.wait(1)
+        task.spawn(function()
+            flyToFix()
+            if act then
+                statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
+                statusLabel.TextColor3 = Color3.new(0, 1, 0)
+            end
+        end)
     end
 end)
 
-local dragToggle = false
-local dragInput, dragStart, startPos
-
+local dragToggle, dragInput, dragStart, startPos = false, nil, nil, nil
 mf.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragToggle = true
@@ -556,13 +276,11 @@ mf.InputBegan:Connect(function(input)
         end)
     end
 end)
-
 mf.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
         dragInput = input
     end
 end)
-
 UIS.InputChanged:Connect(function(input)
     if input == dragInput and dragToggle then
         local delta = input.Position - dragStart
