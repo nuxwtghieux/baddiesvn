@@ -9,7 +9,7 @@ pcall(function() if PlayerGui:FindFirstChild("FLY_GUI") then PlayerGui.FLY_GUI:D
 
 local FIX = Vector3.new(563.2, 3.9, -20.8)
 local FIX_STAND = FIX + Vector3.new(3, 0, 0)
-local UNDERGROUND_Y = FIX_STAND.Y  10
+local UNDERGROUND_Y = FIX_STAND.Y - 10
 local FLY_SPEED = 200
 local STUCK_TIMEOUT = 10
 
