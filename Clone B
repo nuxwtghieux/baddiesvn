@@ -1,4 +1,4 @@
---code số 30b: CLONE B - CHỈ BAY MƯỢT + KHÔNG TELE + CHỐNG KẸT LÒNG ĐẤT
+--code số 30b: CLONE B - XÓA BỎ HOÀN TOÀN TELEPORT + KHÔNG GIẬT LÒNG ĐẤT
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -75,35 +75,30 @@ local function flyToFix()
     enableNoclip(c) 
     
     r.Velocity = Vector3.zero
-    
     local lastPos = r.Position
     local stuckCount = 0
     
-    -- VÒNG LẶP BAY CHÍNH (DI CHUYỂN MẶT PHẲNG XZ)
+    -- VÒNG LẶP BAY NGANG CHỈ DÙNG VELOCITY (KHÔNG DÙNG CFRAME)
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
         local dist = (flatCur - flatTgt).Magnitude
         
-        if dist <= 3 then break end
+        if dist <= 4 then break end -- Đến gần tọa độ đích thì dừng bay ngang
         
         local dir = (flatTgt - flatCur).Unit
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
-        
-        if math.abs(r.Position.Y - Y) > 0.5 then
-            r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-        end
         
         h.AutoRotate = false
         if dir.Magnitude > 0.01 then
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
         end
         
+        -- Chống kẹt vật lý trong lúc đang di chuyển
         if (r.Position - lastPos).Magnitude < 0.5 then
             stuckCount = stuckCount + 1
             if stuckCount >= 15 then
-                r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-                r.Velocity = Vector3.zero
+                r.Velocity = Vector3.new(0, 10, 0) -- Nhích nhẹ lên thay vì tele
                 stuckCount = 0
             end
         else
@@ -114,27 +109,31 @@ local function flyToFix()
         task.wait()
     end
     
-    -- GIAI ĐOẠN TRỒI LÊN MƯỢT MÀ BẰNG VẬN TỐC
+    -- ĐẨY NHÂN VẬT LÊN MẶT ĐẤT HOÀN TOÀN BẰNG VẬN TỐC VẬT LÝ
     if act and r and r.Parent then
-        while act and r and r.Parent and r.Position.Y < tg.Y - 0.5 do
-            r.Velocity = Vector3.new(0, 60, 0) -- Tăng nhẹ lực đẩy lên 60 để mạnh hơn
+        -- Mở noclip tạm thời để đi xuyên từ dưới đất lên sàn
+        enableNoclip(c)
+        -- Đẩy liên tục cho đến khi vượt qua độ cao mặt sàn mong muốn
+        while act and r and r.Parent and r.Position.Y < tg.Y do
+            r.Velocity = Vector3.new(0, 60, 0) 
             task.wait()
         end
     end
     
+    -- KHI ĐÃ TRỒI LÊN TRÊN SÀN THÀNH CÔNG: KHÓA CHẶT TRẠNG THÁI
     En = false 
     if r and r.Parent then
         r.Velocity = Vector3.zero
         disableFreefall(h, r)
     end
     
-    disableNoclip(c) 
+    disableNoclip(c) -- TẮT HẲN NOCLIP ĐỂ ĐỨNG TRÊN SÀN ĐÁNH QUÁI
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
 
--- VÒNG LẶP KIỂM TRA TOÀN DIỆN VÀ TỰ ĐỘNG NÂNG TRỤC Y KHI KẸT
+-- VÒNG LẶP CHẠY NGẦM ĐÃ DỌN SẠCH (KHÔNG CAN THIỆP TỌA ĐỘ, KHÔNG GÂY TELE GIẬT NGƯỢC)
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -144,20 +143,9 @@ task.spawn(function()
                 applyAntiRagdoll(h) 
                 
                 if En then
-                    enableNoclip(c) 
+                    enableNoclip(c) -- Chỉ noclip khi đang bay ngầm
                 else
-                    -- KHI ĐÃ ĐẾN TOẠ ĐỘ ĐÍCH (ĐÃ DỪNG BAY)
-                    disableNoclip(c)
-                    
-                    -- CƠ CHẾ SỬA LỖI KẸT LÒNG ĐẤT:
-                    -- Nếu trục Y hiện tại thấp hơn tọa độ mặt sàn mong muốn (FIX_STAND.Y - 0.5)
-                    if r.Position.Y < (FIX_STAND.Y - 0.5) then
-                        -- Tiến hành kích hoạt Noclip tạm thời để đi xuyên qua sàn lên trên
-                        enableNoclip(c)
-                        -- Nâng dần CFrame trục Y lên một khoảng nhỏ (0.5 stud mỗi 0.02 giây) để trồi lên mượt mà, không bị giật tele mạnh
-                        r.CFrame = r.CFrame + Vector3.new(0, 0.5, 0)
-                        r.Velocity = Vector3.new(r.Velocity.X, 5, r.Velocity.Z)
-                    end
+                    disableNoclip(c) -- Đến nơi bắt buộc tắt noclip hoàn toàn để treo máy
                 end
             end
         else
