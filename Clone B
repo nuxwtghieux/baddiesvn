@@ -1,4 +1,4 @@
---code số 30b: CLONE B - FIX VĂNG KHI TỚI NƠI + GIỮ NOCLIP
+--code số 30b: CLONE B - TẮT NOCLIP KHI TỚI NƠI + NOCLIP CỨNG
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -28,7 +28,10 @@ local function enableNoclip(c)
     noc = true
     if not c then return end
     for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = false end
+        if v:IsA("BasePart") then
+            v.CanCollide = false
+            v:SetAttribute("NoCollide", true)
+        end
     end
 end
 
@@ -36,7 +39,10 @@ local function disableNoclip(c)
     noc = false
     if not c then return end
     for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = true end
+        if v:IsA("BasePart") then
+            v.CanCollide = true
+            v:SetAttribute("NoCollide", false)
+        end
     end
 end
 
@@ -108,7 +114,7 @@ local function flyToFix()
     En = false
     r.Velocity = Vector3.zero
     
-    -- KHÓA VỊ TRÍ TRƯỚC KHI TRỒI LÊN
+    -- TRỒI LÊN + TẮT NOCLIP
     if r and r.Parent then
         r.Anchored = true
         task.wait(0.05)
@@ -132,29 +138,13 @@ local function flyToFix()
     if r and r.Parent then
         disableFreefall(h, r)
     end
+    
+    -- TẮT NOCLIP KHI TỚI NƠI
     disableNoclip(c)
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
-
--- GIỮ NOCLIP KHI DI CHUYỂN BỘ
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if act and stb then
-            local c, h, r = get()
-            if c and r then
-                local dist = (r.Position - FIX_STAND).Magnitude
-                if dist > 3 and not En then
-                    enableNoclip(c)
-                else
-                    disableNoclip(c)
-                end
-            end
-        end
-    end
-end)
 
 player.CharacterAdded:Connect(function()
     if act then
