@@ -1,109 +1,242 @@
-local P = game:GetService("Players")
-local R = game:GetService("RunService")
-local C = game:GetService("CoreGui")
+--code số 30b: CLONE B - FIX GIỐNG CLONE A (BAY + RESPAWN)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local player = Players.LocalPlayer
 
-local p = P.LocalPlayer
 local FIX = Vector3.new(563.2, 3.9, -20.8)
+local FIX_STAND = Vector3.new(FIX.X + 3, FIX.Y, FIX.Z)
 local RAD = 50
+local FLY_SPEED = 200
+local HEAD_OFFSET = 8
+local MAX_SPEED = 18
+local STUCK_TIMEOUT = 10
 
-local act, noc, Y, En = false, false, nil, false
+local act = false
+local stb = false
+local noc = false
+local Y = nil
+local En = false
 
 local function get()
-    local char = p.Character or p.CharacterAdded:Wait()
-    return char, char:WaitForChild("Humanoid", 5), char:WaitForChild("HumanoidRootPart", 5)
+    local c = player.Character
+    if not c then return nil, nil, nil end
+    return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
 end
 
-local function setNoc(char, state)
-    noc = state
-    if not char then return end
-    for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = not state end
+local function enableNoclip(c)
+    noc = true
+    if not c then return end
+    for _, v in pairs(c:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = false end
     end
 end
 
-R.Heartbeat:Connect(function()
-    if not En or not act then return end 
-    local c = get()
-    if noc and c then setNoc(c, true) end 
-end)
+local function disableNoclip(c)
+    noc = false
+    if not c then return end
+    for _, v in pairs(c:GetDescendants()) do
+        if v:IsA("BasePart") then v.CanCollide = true end
+    end
+end
 
-local function fly(tg)
+local function enableFreefall(h)
+    h.PlatformStand = true
+    workspace.Gravity = 0
+end
+
+local function disableFreefall(h, r)
+    h.PlatformStand = false
+    h.AutoRotate = true
+    workspace.Gravity = 196.2
+    if r then r.Velocity = Vector3.zero end
+    h.WalkSpeed = MAX_SPEED
+end
+
+local function flyToFix()
     if not act then return end
+    stb = false
     En = true
     local c, h, r = get()
     if not r or not h then return end
-    
-    Y = tg.Y - 12 
-    h.PlatformStand = true
-    workspace.Gravity = 0
-    setNoc(c, true)
-    
+    local tg = FIX_STAND
+    Y = tg.Y - HEAD_OFFSET
+    enableFreefall(h)
+    enableNoclip(c)
     r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
-    task.wait(0.1)
-    
-    while act and r and r.Parent and En do
-        local cu = Vector3.new(r.Position.X, Y, r.Position.Z)
-        local tu = Vector3.new(tg.X, Y, tg.Z)
-        if (cu - tu).Magnitude <= 4 then break end
-        r.Velocity = (tu - cu).Unit * 400
+    local lastPos = r.Position
+    local stuckTime = 0
+    while act and En and r and r.Parent do
+        local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
+        local flatTgt = Vector3.new(tg.X, 0, tg.Z)
+        if (flatCur - flatTgt).Magnitude <= 5 then break end
+        local dir = (flatTgt - flatCur).Unit
+        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
+        if math.abs(r.Position.Y - Y) > 0.5 then
+            r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
+        end
+        h.AutoRotate = false
+        if dir.Magnitude > 0.01 then
+            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
+        end
+        if (r.Position - lastPos).Magnitude < 0.5 then
+            stuckTime = stuckTime + 0.1
+            if stuckTime >= STUCK_TIMEOUT then
+                break
+            end
+        else
+            stuckTime = 0
+        end
+        lastPos = r.Position
         task.wait()
     end
-    
-    local upY = tg.Y + 3
-    while act and r and r.Parent and En do
-        if r.Position.Y >= upY then break end
-        r.Velocity = Vector3.new(0, 50, 0)
-        task.wait()
-    end
-    
     En = false
-    if r then r.Velocity = Vector3.zero r.CFrame = CFrame.new(tg) r.Anchored = true end
-    task.wait(0.15) 
-    
-    if r then r.Anchored = false end 
-    h.PlatformStand = false
-    workspace.Gravity = 196.2
-    setNoc(c, false)
+    r.Velocity = Vector3.zero
+    if r and r.Parent then
+        disableFreefall(h, r)
+        task.wait(0.1)
+        local startY = r.Position.Y
+        local targetY = tg.Y
+        for t = 0, 1, 0.05 do
+            if not act or not r or not r.Parent then break end
+            local newY = startY + (targetY - startY) * t
+            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
+            r.Velocity = Vector3.zero
+            task.wait(0.02)
+        end
+        r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
+        r.Velocity = Vector3.zero
+        task.wait(0.2)
+    end
+    disableNoclip(c)
+    h.WalkSpeed = MAX_SPEED
+    Y = nil
+    stb = true
 end
 
+-- GIỮ VỊ TRÍ KHI Ở NHÀ
 task.spawn(function()
     while true do
         task.wait(0.5)
-        if act and not En then
+        if act and stb and not En then
             local _, h, r = get()
-            if r and h and (FIX - r.Position).Magnitude > RAD then
-                h:MoveTo(FIX)
+            if r and h then
+                local dist = (r.Position - FIX_STAND).Magnitude
+                if dist > 5 then
+                    h:MoveTo(FIX_STAND)
+                end
             end
         end
     end
 end)
 
-p.CharacterAdded:Connect(function() if act then task.wait(1) fly(FIX) end end)
+player.CharacterAdded:Connect(function()
+    if act then
+        task.wait(1)
+        flyToFix()
+    end
+end)
 
-if C:FindFirstChild("ACTUAL_TG_GUI_B") then C["ACTUAL_TG_GUI_B"]:Destroy() end
-local g = Instance.new("ScreenGui", C) g.Name = "ACTUAL_TG_GUI_B" g.ResetOnSpawn = false
-local mf = Instance.new("Frame", g) mf.Size = UDim2.new(0, 200, 0, 100) mf.Position = UDim2.new(0.5, -100, 0.5, -50) mf.BackgroundColor3 = Color3.fromRGB(24, 24, 30) mf.Active = true mf.Draggable = true Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 12)
-local s = Instance.new("UIStroke", mf) s.Color, s.Thickness = Color3.fromRGB(250, 50, 100), 2
+-- GUI
+if CoreGui:FindFirstChild("ACTUAL_TG_GUI_B") then CoreGui["ACTUAL_TG_GUI_B"]:Destroy() end
+local g = Instance.new("ScreenGui", CoreGui)
+g.Name = "ACTUAL_TG_GUI_B"
+g.ResetOnSpawn = false
 
-local head = Instance.new("Frame", mf) head.Size = UDim2.new(1, 0, 0, 30) head.BackgroundColor3 = Color3.fromRGB(35, 35, 45) Instance.new("UICorner", head).CornerRadius = UDim.new(0, 12)
-local title = Instance.new("TextLabel", head) title.Size = UDim2.new(0.6, 0, 1, 0) title.Position = UDim2.new(0.05, 0, 0, 0) title.Text, title.TextColor3, title.Font, title.TextSize, title.BackgroundTransparency = "CLONE B SYSTEM", Color3.new(1, 1, 1), Enum.Font.GothamBold, 11, 1 title.TextXAlignment = Enum.TextXAlignment.Left
+local mf = Instance.new("Frame", g)
+mf.Size = UDim2.new(0, 200, 0, 100)
+mf.Position = UDim2.new(0.5, -100, 0.5, -50)
+mf.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+mf.Active = true
+mf.Draggable = true
+Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 12)
 
-local cls = Instance.new("TextButton", head) cls.Size = UDim2.new(0, 22, 0, 22) cls.Position = UDim2.new(1, -28, 0, 4) cls.Text, cls.TextColor3, cls.BackgroundColor3 = "✕", Color3.new(1, 1, 1), Color3.fromRGB(220, 50, 50) Instance.new("UICorner", cls)
-local min = Instance.new("TextButton", head) min.Size = UDim2.new(0, 22, 0, 22) min.Position = UDim2.new(1, -54, 0, 4) min.Text, min.TextColor3, min.BackgroundColor3 = "─", Color3.new(1, 1, 1), Color3.fromRGB(200, 150, 30) Instance.new("UICorner", min)
+local s = Instance.new("UIStroke", mf)
+s.Color = Color3.fromRGB(250, 50, 100)
+s.Thickness = 2
 
-local body = Instance.new("Frame", mf) body.Size = UDim2.new(1, 0, 1, -30) body.Position = UDim2.new(0, 0, 0, 30) body.BackgroundTransparency = 1
-local btn = Instance.new("TextButton", body) btn.Size = UDim2.new(0, 110, 0, 35) btn.Position = UDim2.new(0, 10, 1, -50) btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80) btn.Text, btn.TextColor3, btn.Font, btn.TextSize = "▶ START B", Color3.new(1, 1, 1), Enum.Font.GothamBold, 12 Instance.new("UICorner", btn)
-local cpy = Instance.new("TextButton", body) cpy.Size = UDim2.new(0, 60, 0, 35) cpy.Position = UDim2.new(1, -70, 0, 20) cpy.BackgroundColor3 = Color3.fromRGB(50, 50, 60) cpy.Text, cpy.TextColor3, cpy.Font, cpy.TextSize = "📋 COPY", Color3.new(1, 1, 1), Enum.Font.GothamBold, 11 Instance.new("UICorner", cpy)
+local head = Instance.new("Frame", mf)
+head.Size = UDim2.new(1, 0, 0, 30)
+head.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+Instance.new("UICorner", head).CornerRadius = UDim.new(0, 12)
 
-min.MouseButton1Click:Connect(function() body.Visible = not body.Visible mf.Size = body.Visible and UDim2.new(0, 200, 0, 100) or UDim2.new(0, 200, 0, 30) end)
-cls.MouseButton1Click:Connect(function() act, En = false, false g:Destroy() end)
-cpy.MouseButton1Click:Connect(function() setclipboard(tostring(FIX)) end)
+local title = Instance.new("TextLabel", head)
+title.Size = UDim2.new(0.6, 0, 1, 0)
+title.Position = UDim2.new(0.05, 0, 0, 0)
+title.Text = "CLONE B SYSTEM"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 11
+title.BackgroundTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local cls = Instance.new("TextButton", head)
+cls.Size = UDim2.new(0, 22, 0, 22)
+cls.Position = UDim2.new(1, -28, 0, 4)
+cls.Text = "✕"
+cls.TextColor3 = Color3.new(1, 1, 1)
+cls.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+Instance.new("UICorner", cls).CornerRadius = UDim.new(0, 4)
+
+local min = Instance.new("TextButton", head)
+min.Size = UDim2.new(0, 22, 0, 22)
+min.Position = UDim2.new(1, -54, 0, 4)
+min.Text = "─"
+min.TextColor3 = Color3.new(1, 1, 1)
+min.BackgroundColor3 = Color3.fromRGB(200, 150, 30)
+Instance.new("UICorner", min).CornerRadius = UDim.new(0, 4)
+
+local body = Instance.new("Frame", mf)
+body.Size = UDim2.new(1, 0, 1, -30)
+body.Position = UDim2.new(0, 0, 0, 30)
+body.BackgroundTransparency = 1
+
+local btn = Instance.new("TextButton", body)
+btn.Size = UDim2.new(0, 110, 0, 35)
+btn.Position = UDim2.new(0, 10, 1, -50)
+btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+btn.Text = "▶ START B"
+btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.GothamBold
+btn.TextSize = 12
+Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+
+local cpy = Instance.new("TextButton", body)
+cpy.Size = UDim2.new(0, 60, 0, 35)
+cpy.Position = UDim2.new(1, -70, 0, 20)
+cpy.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+cpy.Text = "📋 COPY"
+cpy.TextColor3 = Color3.new(1, 1, 1)
+cpy.Font = Enum.Font.GothamBold
+cpy.TextSize = 11
+Instance.new("UICorner", cpy).CornerRadius = UDim.new(0, 5)
+
+min.MouseButton1Click:Connect(function()
+    body.Visible = not body.Visible
+    mf.Size = body.Visible and UDim2.new(0, 200, 0, 100) or UDim2.new(0, 200, 0, 30)
+end)
+
+cls.MouseButton1Click:Connect(function()
+    act, En = false, false
+    g:Destroy()
+end)
+
+cpy.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard(tostring(FIX)) end)
+end)
 
 btn.MouseButton1Click:Connect(function()
     if not act then
-        act = true btn.Text, btn.BackgroundColor3 = "🛑 STOP B", Color3.fromRGB(200, 40, 40) task.spawn(function() fly(FIX) end)
+        act = true
+        btn.Text = "🛑 STOP B"
+        btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        task.spawn(function() flyToFix() end)
     else
-        act, En = false, false btn.Text, btn.BackgroundColor3 = "▶ START B", Color3.fromRGB(0, 150, 80) local _, h, r = get() if h and r then h:MoveTo(r.Position) end
+        act, En = false, false
+        btn.Text = "▶ START B"
+        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        local _, h, r = get()
+        if h and r then h:MoveTo(r.Position) end
     end
 end)
