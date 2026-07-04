@@ -1,4 +1,4 @@
---code số 33: BAY ĐẾN TỌA ĐỘ + NOCLIP KHI BAY + TẮT NOCLIP KHI TỚI + AUTO RESPAWN BAY LẠI (DELTAX MOBILE)
+--code số 34: BAY ĐẾN TỌA ĐỘ + NOCLIP SUỐT QUÁ TRÌNH BAY + TẮT NOCLIP KHI ĐÃ ĐẾN NƠI ĐỨNG IM + AUTO RESPAWN (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -62,10 +62,10 @@ local function flyToFix()
     En = true
     local c, h, r = getChar()
     if not r or not h then return end
-    enableNoclip()
     local tg = FIX_STAND
-    Y = tg.Y - HEAD_OFFSET
+    Y = tg.Y + HEAD_OFFSET
     enableFreefall(h)
+    enableNoclip()
     r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
     local lastPos = r.Position
@@ -73,10 +73,10 @@ local function flyToFix()
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
-        if (flatCur - flatTgt).Magnitude <= 5 then break end
+        if (flatCur - flatTgt).Magnitude <= 3 then break end
         local dir = (flatTgt - flatCur).Unit
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
-        if math.abs(r.Position.Y - Y) > 0.5 then
+        if math.abs(r.Position.Y - Y) > 1 then
             r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
         end
         h.AutoRotate = false
@@ -108,10 +108,10 @@ local function flyToFix()
         end
         r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
         r.Velocity = Vector3.zero
-        task.wait(0.2)
+        task.wait(0.3)
     end
     disableNoclip()
-    h.WalkSpeed = 0
+    if h then h.WalkSpeed = 0 end
     Y = nil
 end
 
@@ -122,8 +122,8 @@ g.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 g.Parent = PlayerGui
 
 local mf = Instance.new("Frame", g)
-mf.Size = UDim2.new(0, 200, 0, 150)
-mf.Position = UDim2.new(0, 20, 0.5, -75)
+mf.Size = UDim2.new(0, 200, 0, 160)
+mf.Position = UDim2.new(0, 20, 0.5, -80)
 mf.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 mf.BackgroundTransparency = 0.15
 mf.BorderSizePixel = 0
@@ -194,7 +194,7 @@ statusLabel.TextSize = 10
 
 local noclipLabel = Instance.new("TextLabel", body)
 noclipLabel.Size = UDim2.new(1, -20, 0, 18)
-noclipLabel.Position = UDim2.new(0, 10, 0, 66)
+noclipLabel.Position = UDim2.new(0, 10, 0, 68)
 noclipLabel.Text = "Noclip: TAT"
 noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
 noclipLabel.BackgroundTransparency = 1
@@ -203,7 +203,7 @@ noclipLabel.TextSize = 9
 
 local cpyBtn = Instance.new("TextButton", body)
 cpyBtn.Size = UDim2.new(1, -20, 0, 26)
-cpyBtn.Position = UDim2.new(0, 10, 0, 90)
+cpyBtn.Position = UDim2.new(0, 10, 0, 92)
 cpyBtn.Text = "COPY TOA DO"
 cpyBtn.TextColor3 = Color3.new(1, 1, 1)
 cpyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
@@ -213,7 +213,7 @@ Instance.new("UICorner", cpyBtn).CornerRadius = UDim.new(0, 4)
 
 local flyBtn = Instance.new("TextButton", body)
 flyBtn.Size = UDim2.new(1, -20, 0, 26)
-flyBtn.Position = UDim2.new(0, 10, 0, 122)
+flyBtn.Position = UDim2.new(0, 10, 0, 124)
 flyBtn.Text = "START"
 flyBtn.TextColor3 = Color3.new(1, 1, 1)
 flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
@@ -223,7 +223,7 @@ Instance.new("UICorner", flyBtn).CornerRadius = UDim.new(0, 4)
 
 min.MouseButton1Click:Connect(function()
     body.Visible = not body.Visible
-    mf.Size = body.Visible and UDim2.new(0, 200, 0, 150) or UDim2.new(0, 200, 0, 32)
+    mf.Size = body.Visible and UDim2.new(0, 200, 0, 160) or UDim2.new(0, 200, 0, 32)
 end)
 
 cls.MouseButton1Click:Connect(function()
@@ -242,16 +242,16 @@ flyBtn.MouseButton1Click:Connect(function()
         act = true
         flyBtn.Text = "STOP"
         flyBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        statusLabel.Text = "Trang thai: DANG BAY..."
+        statusLabel.Text = "Trang thai: DANG BAY (NOCLIP ON)..."
         statusLabel.TextColor3 = Color3.new(1, 1, 0)
-        noclipLabel.Text = "Noclip: BAT"
+        noclipLabel.Text = "Noclip: BAT (DANG BAY)"
         noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.spawn(function()
             flyToFix()
             if act then
                 statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
                 statusLabel.TextColor3 = Color3.new(0, 1, 0)
-                noclipLabel.Text = "Noclip: TAT"
+                noclipLabel.Text = "Noclip: TAT (DA DUNG)"
                 noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
             end
         end)
@@ -275,9 +275,9 @@ end)
 
 player.CharacterAdded:Connect(function()
     if act then
-        statusLabel.Text = "Trang thai: RESPAWN - DANG BAY LAI..."
+        statusLabel.Text = "Trang thai: RESPAWN - BAY LAI..."
         statusLabel.TextColor3 = Color3.new(1, 1, 0)
-        noclipLabel.Text = "Noclip: BAT"
+        noclipLabel.Text = "Noclip: BAT (DANG BAY)"
         noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.wait(1)
         task.spawn(function()
@@ -285,7 +285,7 @@ player.CharacterAdded:Connect(function()
             if act then
                 statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
                 statusLabel.TextColor3 = Color3.new(0, 1, 0)
-                noclipLabel.Text = "Noclip: TAT"
+                noclipLabel.Text = "Noclip: TAT (DA DUNG)"
                 noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
             end
         end)
