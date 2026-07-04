@@ -1,4 +1,4 @@
---code số 30b: CLONE B - TẮT NOCLIP KHI TỚI NƠI + NOCLIP CỨNG
+--code số 30b: CLONE B - FIX VĂNG KHI TỚI NƠI + GIỮ NOCLIP (FIXED NOCLIP)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -28,10 +28,7 @@ local function enableNoclip(c)
     noc = true
     if not c then return end
     for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.CanCollide = false
-            v:SetAttribute("NoCollide", true)
-        end
+        if v:IsA("BasePart") then v.CanCollide = false end
     end
 end
 
@@ -39,10 +36,7 @@ local function disableNoclip(c)
     noc = false
     if not c then return end
     for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.CanCollide = true
-            v:SetAttribute("NoCollide", false)
-        end
+        if v:IsA("BasePart") then v.CanCollide = true end
     end
 end
 
@@ -111,10 +105,11 @@ local function flyToFix()
         task.wait()
     end
     
+    -- XÁC ĐỊNH ĐÃ ĐÁP XONG
     En = false
     r.Velocity = Vector3.zero
     
-    -- TRỒI LÊN + TẮT NOCLIP
+    -- KHÓA VỊ TRÍ TRƯỚC KHI TRỒI LÊN
     if r and r.Parent then
         r.Anchored = true
         task.wait(0.05)
@@ -138,13 +133,39 @@ local function flyToFix()
     if r and r.Parent then
         disableFreefall(h, r)
     end
-    
-    -- TẮT NOCLIP KHI TỚI NƠI
     disableNoclip(c)
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
+
+-- GIỮ NOCLIP KHI DI CHUYỂN BỘ (ĐÃ FIX LỖI KHÔNG TẮT)
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if act then
+            local c, h, r = get()
+            if c and r then
+                -- Nếu đang trong trạng thái bay (En == true) -> Luôn noclip
+                if En then
+                    enableNoclip(c)
+                else
+                    -- Nếu đã đáp (stb == true) -> Kiểm tra khoảng cách đi bộ xa mới bật lại
+                    local dist = (r.Position - FIX_STAND).Magnitude
+                    if dist > 5 then 
+                        enableNoclip(c)
+                    else
+                        disableNoclip(c) -- Ở trong vùng gốc bắt buộc tắt noclip
+                    end
+                end
+            end
+        else
+            -- Khi bấm STOP -> Tắt sạch noclip ngay lập tức
+            local c = player.Character
+            if c then disableNoclip(c) end
+        end
+    end
+end)
 
 player.CharacterAdded:Connect(function()
     if act then
@@ -234,6 +255,8 @@ end)
 
 cls.MouseButton1Click:Connect(function()
     act, En = false, false
+    local c = player.Character
+    if c then disableNoclip(c) end
     g:Destroy()
 end)
 
@@ -251,7 +274,8 @@ btn.MouseButton1Click:Connect(function()
         act, En = false, false
         btn.Text = "▶ START B"
         btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        local _, h, r = get()
+        local c, h, r = get()
         if h and r then h:MoveTo(r.Position) end
+        if c then disableNoclip(c) end
     end
 end)
