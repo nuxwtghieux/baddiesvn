@@ -1,4 +1,4 @@
---code số 12: CLONE B (PHỤ) - BAY NGẦM DƯỚI ĐẤT CHUẨN GỐC + ĐỨNG YÊN TẠI HOME
+--code số 18: CLONE B (PHỤ) - GUI SIÊU NHẸ + DỪNG HẲN KHI TỚI + KHÔNG RƠI VOID
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -19,6 +19,7 @@ local HOME_POS = Vector3.new(563.2, 3.9, -20.8)
 local ScriptEnabled = false
 local IsFlying = false
 local IsAtHome = false
+local LandedOnce = false
 
 local function getChar()
     local char = player.Character or player.CharacterAdded:Wait()
@@ -107,19 +108,41 @@ local function landSafely(targetPos, hum, hrp)
     task.wait(0.1)
     hrp.CFrame = CFrame.new(targetPos.X, targetPos.Y + 3, targetPos.Z)
     hrp.Velocity = Vector3.zero
-    task.wait(0.2)
+    task.wait(0.3)
     disableNoclip(player.Character)
-    hum.WalkSpeed = SPEED
+    hum.WalkSpeed = 0
+    hum.JumpPower = 0
+    hum.AutoRotate = false
     UndergroundY = nil
     IsFlying = false
+    LandedOnce = true
+end
+
+local function lockPosition()
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        hum.WalkSpeed = 0
+        hum.JumpPower = 0
+        hum.AutoRotate = false
+        hum.PlatformStand = false
+    end
+    hrp.Velocity = Vector3.zero
+    hrp.Anchored = true
+    hrp.CFrame = CFrame.new(HOME_POS.X, HOME_POS.Y, HOME_POS.Z)
 end
 
 local function goHome()
     IsAtHome = false
     IsFlying = false
+    LandedOnce = false
     local char, hum, hrp = getChar()
     flyToTarget(HOME_POS, hum, hrp)
     landSafely(HOME_POS, hum, hrp)
+    lockPosition()
     IsAtHome = true
 end
 
@@ -137,6 +160,13 @@ RunService.Heartbeat:Connect(function()
             hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
         end
     end
+    if IsAtHome and LandedOnce and not IsFlying then
+        if not hrp.Anchored then hrp.Anchored = true end
+        if (hrp.Position - HOME_POS).Magnitude > 3 then
+            hrp.CFrame = CFrame.new(HOME_POS.X, HOME_POS.Y, HOME_POS.Z)
+            hrp.Velocity = Vector3.zero
+        end
+    end
 end)
 
 player.CharacterAdded:Connect(function(char)
@@ -144,183 +174,130 @@ player.CharacterAdded:Connect(function(char)
     if ScriptEnabled then
         IsAtHome = false
         IsFlying = false
+        LandedOnce = false
         UndergroundY = nil
+        local hrp = char:WaitForChild("HumanoidRootPart")
+        if hrp then hrp.Anchored = false end
         goHome()
     end
 end)
 
---// ============ GUI ============
+--// ============ GUI SIÊU NHẸ KHÔNG BỊ BAN ============
 local gui = Instance.new("ScreenGui")
-gui.Name = "CLONE_B_GUI"
+gui.Name = "B"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 260, 0, 160)
-mainFrame.Position = UDim2.new(0.5, -130, 0.5, -80)
-mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-mainFrame.BackgroundTransparency = 0.1
+mainFrame.Size = UDim2.new(0, 240, 0, 140)
+mainFrame.Position = UDim2.new(0, 10, 0, 430)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Visible = true
 mainFrame.Parent = gui
+local c = Instance.new("UICorner", mainFrame) c.CornerRadius = UDim.new(0, 10)
 
-local mainCorner = Instance.new("UICorner", mainFrame)
-mainCorner.CornerRadius = UDim.new(0, 14)
+local t = Instance.new("Frame")
+t.Size = UDim2.new(1, 0, 0, 32)
+t.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+t.BorderSizePixel = 0
+t.Parent = mainFrame
+local tc = Instance.new("UICorner", t) tc.CornerRadius = UDim.new(0, 10)
 
-local mainStroke = Instance.new("UIStroke", mainFrame)
-mainStroke.Color = Color3.fromRGB(0, 150, 255)
-mainStroke.Thickness = 2
-mainStroke.Transparency = 0.4
-
-local titleBar = Instance.new("Frame")
-titleBar.Size = UDim2.new(1, 0, 0, 38)
-titleBar.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-titleBar.BackgroundTransparency = 0.3
-titleBar.BorderSizePixel = 0
-titleBar.Parent = mainFrame
-
-local titleCorner = Instance.new("UICorner", titleBar)
-titleCorner.CornerRadius = UDim.new(0, 14)
-
-local titleText = Instance.new("TextLabel")
-titleText.Size = UDim2.new(0.6, 0, 1, 0)
-titleText.Position = UDim2.new(0.05, 0, 0, 0)
-titleText.BackgroundTransparency = 1
-titleText.Font = Enum.Font.GothamBold
-titleText.TextColor3 = Color3.new(1, 1, 1)
-titleText.TextSize = 14
-titleText.Text = "🛡️ CLONE B - TRỤ"
-titleText.TextXAlignment = Enum.TextXAlignment.Left
-titleText.Parent = titleBar
-
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0, 28, 0, 28)
-minimizeBtn.Position = UDim2.new(1, -66, 0, 5)
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
-minimizeBtn.BackgroundTransparency = 0.2
-minimizeBtn.Font = Enum.Font.GothamBold
-minimizeBtn.TextColor3 = Color3.new(1, 1, 1)
-minimizeBtn.TextSize = 16
-minimizeBtn.Text = "─"
-minimizeBtn.Parent = titleBar
-
-local minimizeCorner = Instance.new("UICorner", minimizeBtn)
-minimizeCorner.CornerRadius = UDim.new(0, 6)
+local tl = Instance.new("TextLabel")
+tl.Size = UDim2.new(1, -60, 1, 0)
+tl.Position = UDim2.new(0, 10, 0, 0)
+tl.BackgroundTransparency = 1
+tl.Font = Enum.Font.GothamBold
+tl.TextColor3 = Color3.new(1, 1, 1)
+tl.TextSize = 13
+tl.Text = "CLONE B"
+tl.TextXAlignment = Enum.TextXAlignment.Left
+tl.Parent = t
 
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 28, 0, 28)
-closeBtn.Position = UDim2.new(1, -34, 0, 5)
-closeBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-closeBtn.BackgroundTransparency = 0.2
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -28, 0, 4)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 closeBtn.Font = Enum.Font.GothamBold
 closeBtn.TextColor3 = Color3.new(1, 1, 1)
-closeBtn.TextSize = 16
-closeBtn.Text = "✕"
-closeBtn.Parent = titleBar
-
-local closeCorner = Instance.new("UICorner", closeBtn)
-closeCorner.CornerRadius = UDim.new(0, 6)
+closeBtn.TextSize = 12
+closeBtn.Text = "X"
+closeBtn.Parent = t
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
 
 local contentFrame = Instance.new("Frame")
-contentFrame.Size = UDim2.new(1, -20, 1, -54)
-contentFrame.Position = UDim2.new(0, 10, 0, 46)
+contentFrame.Size = UDim2.new(1, -16, 1, -40)
+contentFrame.Position = UDim2.new(0, 8, 0, 38)
 contentFrame.BackgroundTransparency = 1
 contentFrame.BorderSizePixel = 0
 contentFrame.Parent = mainFrame
 
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 30)
-statusLabel.Position = UDim2.new(0, 0, 0, 10)
-statusLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-statusLabel.BackgroundTransparency = 0.2
+statusLabel.Size = UDim2.new(1, 0, 0, 28)
+statusLabel.Position = UDim2.new(0, 0, 0, 8)
+statusLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 statusLabel.BorderSizePixel = 0
 statusLabel.Font = Enum.Font.GothamBold
 statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
-statusLabel.TextSize = 12
-statusLabel.Text = "⏸ CHƯA KÍCH HOẠT"
+statusLabel.TextSize = 11
+statusLabel.Text = "CHUA KICH HOAT"
 statusLabel.Parent = contentFrame
-
-local statusCorner = Instance.new("UICorner", statusLabel)
-statusCorner.CornerRadius = UDim.new(0, 8)
-
-local posLabel = Instance.new("TextLabel")
-posLabel.Size = UDim2.new(1, 0, 0, 24)
-posLabel.Position = UDim2.new(0, 0, 0, 48)
-posLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-posLabel.BackgroundTransparency = 0.2
-posLabel.BorderSizePixel = 0
-posLabel.Font = Enum.Font.Gotham
-posLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-posLabel.TextSize = 10
-posLabel.Text = "📍 HOME: 563.2, 3.9, -20.8"
-posLabel.Parent = contentFrame
-
-local posCorner = Instance.new("UICorner", posLabel)
-posCorner.CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", statusLabel).CornerRadius = UDim.new(0, 6)
 
 local startBtn = Instance.new("TextButton")
-startBtn.Size = UDim2.new(1, 0, 0, 36)
-startBtn.Position = UDim2.new(0, 0, 1, -42)
-startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-startBtn.BackgroundTransparency = 0.3
+startBtn.Size = UDim2.new(1, 0, 0, 32)
+startBtn.Position = UDim2.new(0, 0, 1, -40)
+startBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
 startBtn.Font = Enum.Font.GothamBold
 startBtn.TextColor3 = Color3.new(1, 1, 1)
-startBtn.TextSize = 14
-startBtn.Text = "▶ START"
+startBtn.TextSize = 13
+startBtn.Text = "START"
 startBtn.Parent = contentFrame
-
-local startCorner = Instance.new("UICorner", startBtn)
-startCorner.CornerRadius = UDim.new(0, 8)
-
-local isMinimized = false
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0, 6)
 
 startBtn.MouseButton1Click:Connect(function()
     ScriptEnabled = not ScriptEnabled
     if ScriptEnabled then
-        startBtn.Text = "⏸ STOP"
-        startBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        startBtn.BackgroundTransparency = 0.3
-        statusLabel.Text = "▶ ĐANG GIỮ VỊ TRÍ"
+        startBtn.Text = "STOP"
+        startBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        statusLabel.Text = "DANG GIU VI TRI"
         statusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
         IsAtHome = false
         IsFlying = false
+        LandedOnce = false
         UndergroundY = nil
         task.spawn(function()
             goHome()
             while ScriptEnabled do
-                local char = player.Character
-                if char and char:FindFirstChild("HumanoidRootPart") and IsAtHome and not IsFlying then
-                    local hrp = char.HumanoidRootPart
-                    if (hrp.Position - HOME_POS).Magnitude > 15 then
-                        goHome()
+                if IsAtHome and LandedOnce and not IsFlying then
+                    local char = player.Character
+                    if char then
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            hrp.Anchored = true
+                            hrp.Velocity = Vector3.zero
+                            hrp.CFrame = CFrame.new(HOME_POS.X, HOME_POS.Y, HOME_POS.Z)
+                        end
                     end
                 end
-                task.wait(2)
+                task.wait(1)
             end
         end)
     else
-        startBtn.Text = "▶ START"
-        startBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-        startBtn.BackgroundTransparency = 0.3
-        statusLabel.Text = "⏸ ĐÃ DỪNG"
+        startBtn.Text = "START"
+        startBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
+        statusLabel.Text = "DA DUNG"
         statusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
         IsAtHome = false
         IsFlying = false
+        LandedOnce = false
         UndergroundY = nil
-    end
-end)
-
-minimizeBtn.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    if isMinimized then
-        contentFrame.Visible = false
-        mainFrame.Size = UDim2.new(0, 260, 0, 46)
-        minimizeBtn.Text = "□"
-    else
-        contentFrame.Visible = true
-        mainFrame.Size = UDim2.new(0, 260, 0, 160)
-        minimizeBtn.Text = "─"
+        local char = player.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then hrp.Anchored = false end
+        end
     end
 end)
 
@@ -328,26 +305,27 @@ closeBtn.MouseButton1Click:Connect(function()
     ScriptEnabled = false
     IsAtHome = false
     IsFlying = false
+    LandedOnce = false
     UndergroundY = nil
+    local char = player.Character
+    if char then
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.Anchored = false end
+    end
     gui:Destroy()
 end)
 
 local dragToggle = false
 local dragStart = Vector2.zero
-local startPos = UDim2.new(0.5, -130, 0.5, -80)
-
-titleBar.InputBegan:Connect(function(input)
+local startPos = UDim2.new(0, 10, 0, 430)
+t.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragToggle = true
         dragStart = input.Position
         startPos = mainFrame.Position
     end
 end)
-
-titleBar.InputEnded:Connect(function(input)
-    dragToggle = false
-end)
-
+t.InputEnded:Connect(function(input) dragToggle = false end)
 UIS.InputChanged:Connect(function(input)
     if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
