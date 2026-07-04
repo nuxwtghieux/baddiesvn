@@ -1,4 +1,4 @@
---code số 30b: CLONE B - GIỮ NOCLIP KHI TRỒI LÊN + BỎ HOÀN TOÀN TELEPORT
+--code số 30b: CLONE B - 100% VẬN TỐC THỦ CÔNG - KHÔNG MỘT LỆNH CFRAME TELE
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -63,7 +63,7 @@ end
 local function flyToFix()
     if not act then return end
     stb = false
-    En = true -- Đang trong trạng thái bay và trồi lên
+    En = true 
     local c, h, r = get()
     if not r or not h then return end
     
@@ -72,66 +72,63 @@ local function flyToFix()
     
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
-    enableNoclip(c) -- Bật Noclip để đi xuyên lòng đất
+    enableNoclip(c) 
     
     r.Velocity = Vector3.zero
-    local lastPos = r.Position
-    local stuckCount = 0
     
-    -- 1. VÒNG LẶP BAY NGANG DƯỚI LÒNG ĐẤT (KHÔNG DÙNG CFRAME ĐỂ TELE)
+    -- XÓA HẲN ĐOẠN ĐỊNH VỊ ĐẦU CFRAME ĐỂ KHÔNG TELE NGAY TỪ LÚC ẤN START
+    -- Cho nhân vật tự lặn xuống độ cao Y bằng lực đẩy vật lý mượt mà
+    while act and r and r.Parent and r.Position.Y > Y + 1 do
+        r.Velocity = Vector3.new(0, -50, 0)
+        task.wait()
+    end
+    
+    -- VÒNG LẶP BAY NGANG DUY TRÌ BẰNG VẬN TỐC (ĐÃ XÓA CHECK CFRAME NỬA ĐƯỜNG)
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
         local dist = (flatCur - flatTgt).Magnitude
         
-        if dist <= 4 then break end -- Đến gần sát tọa độ đích thì dừng bay ngang
+        if dist <= 5 then break end -- Đến gần đích thì dừng bay ngang
         
         local dir = (flatTgt - flatCur).Unit
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
+        
+        -- Tính toán lực đẩy mượt mà theo cả 3 trục X, Y, Z (Giữ độ cao Y ổn định bằng Velocity)
+        local targetYVelocity = (Y - r.Position.Y) * 5
+        r.Velocity = Vector3.new(dir.X * FLY_SPEED, targetYVelocity, dir.Z * FLY_SPEED)
         
         h.AutoRotate = false
+        -- Chỉ xoay hướng nhìn của nhân vật bằng CFrame (Không thay đổi vị trí tọa độ gốc)
         if dir.Magnitude > 0.01 then
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
         end
         
-        if (r.Position - lastPos).Magnitude < 0.5 then
-            stuckCount = stuckCount + 1
-            if stuckCount >= 15 then
-                r.Velocity = Vector3.new(0, 10, 0)
-                stuckCount = 0
-            end
-        else
-            stuckCount = 0
-        end
-        
-        lastPos = r.Position
         task.wait()
     end
     
-    -- 2. GIAI ĐOẠN TRỒI LÊN MẶT SÀN (GIỮ NGUYÊN NOCLIP ĐỂ KHÔNG BỊ KẸT)
+    -- GIAI ĐOẠN TRỒI LÊN MẶT SÀN (GIỮ NOCLIP ĐỂ XUYÊN SÀN, CHỈ DÙNG LỰC ĐẨY LÊN)
     if act and r and r.Parent then
-        -- Vòng lặp ép nhân vật đi lên bằng lực đẩy cho tới khi vượt qua hẳn mặt sàn tg.Y
-        while act and r and r.Parent and r.Position.Y < (tg.Y + 1) do
-            enableNoclip(c) -- Liên tục khóa Noclip trong lúc trồi lên
-            r.Velocity = Vector3.new(0, 60, 0) -- Đẩy nhân vật lên mượt mà bằng vật lý
+        while act and r and r.Parent and r.Position.Y < tg.Y do
+            enableNoclip(c) -- Giữ Noclip cho đến khi lên hẳn mặt đất
+            r.Velocity = Vector3.new(0, 60, 0) -- Đẩy thẳng lên bằng lực vật lý mượt mà
             task.wait()
         end
     end
     
-    -- 3. ĐÃ LÊN TRÊN SÀN AN TOÀN -> KHÓA CHẶT TRẠNG THÁI VÀ TẮT NOCLIP
-    En = false -- Kết thúc quá trình bay và trồi
+    -- ĐÃ TRỒI LÊN HOÀN TOÀN -> KHÓA CHẶT TRẠNG THÁI VÀ ĐỨNG IM
+    En = false 
     if r and r.Parent then
         r.Velocity = Vector3.zero
         disableFreefall(h, r)
     end
     
-    disableNoclip(c) -- TẮT HẲN NOCLIP ĐỂ ĐỨNG CHẮC TRÊN SÀN TREO MÁY
+    disableNoclip(c) -- TẮT HẲN NOCLIP ĐỂ ĐỨNG CHẮC CHẮN TRÊN SÀN TREO MÁY
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
 
--- VÒNG LẶP QUÉT ĐỒNG BỘ (CHỈ QUẢN LÝ NOCLIP VÀ RAGDOLL, TUYỆT ĐỐI KHÔNG GÂY TELE)
+-- VÒNG LẶP QUÉT TRẠNG THÁI (KHÔNG CÓ LỆNH CFRAME DI CHUYỂN, CHỈ QUẢN LÝ NOCLIP VÀ RAGDOLL)
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -141,9 +138,9 @@ task.spawn(function()
                 applyAntiRagdoll(h) 
                 
                 if En then
-                    enableNoclip(c) -- Luôn luôn giữ Noclip trong suốt thời gian bay và ngoi lên sàn
+                    enableNoclip(c) -- Đang bay/trồi lên thì bật noclip xuyên lòng đất
                 else
-                    disableNoclip(c) -- Đứng trên sàn rồi thì khóa chặt va chạm, tắt hẳn Noclip
+                    disableNoclip(c) -- Đứng trên sàn rồi thì tắt hẳn noclip để farm
                 end
             end
         else
