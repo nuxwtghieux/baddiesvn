@@ -1,22 +1,16 @@
 -- ==========================================================
--- SCRIPT CLONE B (SUB ACC) - FIXED SPEED & GUI FOR EXECUTOR
+-- SCRIPT CLONE B (SUB ACC) - FIXED NOCLIP ARRIVAL
 -- ==========================================================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
 
 local player = Players.LocalPlayer
-
--- CẤU HÌNH DI CHUYỂN SIÊU NHANH
-local FLY_SPEED = 400 -- Tốc độ bay ngầm đồng bộ với Clone A
-local HEAD_OFFSET = 12 
+local FLY_SPEED = 400 
 local FIXED_POS = Vector3.new(563.2, 3.9, -20.8)
-
--- TRẠNG THÁI HỆ THỐNG
 local act = false
-local noc = false
-local Y = nil
 local En = false
+local noc = false
 
 local function getChar()
     local char = player.Character or player.CharacterAdded:Wait()
@@ -29,121 +23,89 @@ local function setNoc(char, state)
     noc = state
     if not char then return end
     for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then 
-            v.CanCollide = not state 
-        end
+        if v:IsA("BasePart") then v.CanCollide = not state end
     end
 end
 
-local function fly(tg)
-    if not act then return end
-    En = true 
+-- GHIM NOCLIP LIÊN TỤC CHO CLONE B CHỐNG KẸT KHI NHÔ LÊN NỀN ĐẤT
+RunService.Heartbeat:Connect(function()
+    if not En or not act then return end 
+    local c, _, _ = getChar()
+    if noc and c then 
+        setNoc(c, true)
+    end 
+end)
+
+local function executeFly(tg)
+    act = true
+    En = true
     local c, h, r = getChar()
     if not r or not h then return end
     
-    Y = tg.Y - HEAD_OFFSET 
-    setNoc(c, true)
+    local undergroundY = tg.Y - 12 
     h.PlatformStand = true
     workspace.Gravity = 0
-    r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-    r.Velocity = Vector3.zero
+    setNoc(c, true)
     
-    while En and r and r.Parent and act do 
-        local d = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(tg.X, 0, tg.Z)).Magnitude 
-        if d <= 3 then break end
+    r.CFrame = CFrame.new(r.Position.X, undergroundY, r.Position.Z)
+    r.Velocity = Vector3.zero
+    task.wait(0.1)
+    
+    -- Giai đoạn 1: Bay dưới đất đến tọa độ đích
+    while act and r and r.Parent and En do
+        local currentUndergroundPos = Vector3.new(r.Position.X, undergroundY, r.Position.Z)
+        local targetUndergroundPos = Vector3.new(tg.X, undergroundY, tg.Z)
+        local d = (currentUndergroundPos - targetUndergroundPos).Magnitude 
         
-        local dir = (Vector3.new(tg.X, 0, tg.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Unit 
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
+        if d <= 4 then break end
         
-        if math.abs(r.Position.Y - Y) > 0.5 then 
-            r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z) 
-        end 
-        
-        h.AutoRotate = false 
-        if dir.Magnitude > 0.01 then 
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z)) 
-        end 
+        local direction = (targetUndergroundPos - currentUndergroundPos).Unit
+        r.Velocity = Vector3.new(direction.X * FLY_SPEED, 0, direction.Z * FLY_SPEED)
+        task.wait()
+    end
+    
+    -- Giai đoạn 2: Trồi thẳng đứng lên khỏi mặt đất mượt mà
+    local upTargetY = tg.Y + 3
+    while act and r and r.Parent and En do
+        if r.Position.Y >= upTargetY then break end
+        r.Velocity = Vector3.new(0, 50, 0)
         task.wait()
     end
     
     En = false
-    if r then r.Velocity = Vector3.zero r.CFrame = CFrame.new(tg) end
-    task.wait(0.2)
-    if h then h.PlatformStand = false h.AutoRotate = true end
-    workspace.Gravity = 196.2 
-    setNoc(c, false)
+    act = false
+    
+    -- Giai đoạn 3: Khóa đứng im thăng bằng tiếp đất an toàn
+    if r then 
+        r.Velocity = Vector3.zero
+        r.CFrame = CFrame.new(tg)
+        r.Anchored = true 
+    end
+    task.wait(0.15) 
+    
+    if r then r.Anchored = false end 
+    h.PlatformStand = false
+    workspace.Gravity = 196.2
+    setNoc(c, false) -- Rụng xuống đất xong xuôi mới bật lại va chạm cứng
 end
-
-RunService.Heartbeat:Connect(function()
-    if not En or not act then return end 
-    local c, _, r = getChar()
-    if noc and c then setNoc(c, true) end 
-    if r and Y and math.abs(r.Position.Y - Y) > 2 then 
-        r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-        r.Velocity = Vector3.new(r.Velocity.X, 0, r.Velocity.Z)
-    end 
-end)
 
 player.CharacterAdded:Connect(function()
-    if act then 
-        task.wait(1) 
-        fly(FIXED_POS) 
-    end 
+    if btn and btn.Text == "🛑 SYSTEM ACTIVE" then
+        task.wait(1)
+        executeFly(FIXED_POS)
+    end
 end)
 
--- ==========================================================
--- GIAO DIỆN TỐI GIẢN AN TOÀN CHO ACC BÊN EXECUTOR
--- ==========================================================
-if CoreGui:FindFirstChild("EX_B_GUI") then
-    CoreGui["EX_B_GUI"]:Destroy()
-end
-
-local g = Instance.new("ScreenGui")
-g.Name = "EX_B_GUI"
-g.ResetOnSpawn = false
-g.Parent = CoreGui
-
-local mf = Instance.new("Frame")
-mf.Size = UDim2.new(0, 200, 0, 90)
-mf.Position = UDim2.new(0.5, -100, 0.5, -45)
-mf.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-mf.Active = true
-mf.Draggable = true
-mf.Parent = g
-Instance.new("UICorner", mf)
-
-local lbl = Instance.new("TextLabel")
-lbl.Size = UDim2.new(1, 0, 0, 30)
-lbl.Text = "🤖 CLONE B POSITION CONTROLLER"
-lbl.TextColor3 = Color3.new(1, 1, 1)
-lbl.BackgroundTransparency = 1
-lbl.Font = Enum.Font.GothamBold
-lbl.TextSize = 10
-lbl.Parent = mf
-
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -20, 0, 40)
-btn.Position = UDim2.new(0, 10, 1, -50)
-btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-btn.Text = "▶ START FLY B"
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 13
-btn.Parent = mf
-Instance.new("UICorner", btn)
+if CoreGui:FindFirstChild("EX_B_GUI") then CoreGui["EX_B_GUI"]:Destroy() end
+local g = Instance.new("ScreenGui") g.Name = "EX_B_GUI" g.ResetOnSpawn = false g.Parent = CoreGui
+local mf = Instance.new("Frame") mf.Size = UDim2.new(0, 200, 0, 90) mf.Position = UDim2.new(0.5, -100, 0.5, -45) mf.BackgroundColor3 = Color3.fromRGB(25, 25, 30) mf.Active = true mf.Draggable = true mf.Parent = g Instance.new("UICorner", mf)
+local lbl = Instance.new("TextLabel") lbl.Size = UDim2.new(1, 0, 0, 30) lbl.Text = "🤖 CLONE B CONTROLLER" lbl.TextColor3 = Color3.new(1, 1, 1) lbl.BackgroundTransparency = 1 lbl.Font = Enum.Font.GothamBold lbl.TextSize = 11 lbl.Parent = mf
+local btn = Instance.new("TextButton") btn.Size = UDim2.new(1, -20, 0, 40) btn.Position = UDim2.new(0, 10, 1, -50) btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80) btn.Text = "▶ START FLY B" btn.TextColor3 = Color3.new(1, 1, 1) btn.Font = Enum.Font.GothamBold btn.TextSize = 13 btn.Parent = mf Instance.new("UICorner", btn)
 
 btn.MouseButton1Click:Connect(function()
-    if not act then
-        act = true
-        btn.Text = "🛑 STOP FLY B"
-        btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        task.spawn(function() fly(FIXED_POS) end)
-    else
-        act = false
-        En = false
-        btn.Text = "▶ START FLY B"
-        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        local _, h, r = getChar()
-        if h and r then h:MoveTo(r.Position) end
+    if btn.Text == "▶ START FLY B" then
+        btn.Text = "🛑 SYSTEM ACTIVE"
+        btn.BackgroundColor3 = Color3.fromRGB(150, 30, 200)
+        task.spawn(function() executeFly(FIXED_POS) end)
     end
 end)
