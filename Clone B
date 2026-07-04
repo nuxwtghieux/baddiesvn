@@ -1,4 +1,4 @@
---code số 30b: CLONE B - XÓA BỎ HOÀN TOÀN TELEPORT + KHÔNG GIẬT LÒNG ĐẤT
+--code số 30b: CLONE B - GIỮ NOCLIP KHI TRỒI LÊN + BỎ HOÀN TOÀN TELEPORT
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -63,7 +63,7 @@ end
 local function flyToFix()
     if not act then return end
     stb = false
-    En = true 
+    En = true -- Đang trong trạng thái bay và trồi lên
     local c, h, r = get()
     if not r or not h then return end
     
@@ -72,19 +72,19 @@ local function flyToFix()
     
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
-    enableNoclip(c) 
+    enableNoclip(c) -- Bật Noclip để đi xuyên lòng đất
     
     r.Velocity = Vector3.zero
     local lastPos = r.Position
     local stuckCount = 0
     
-    -- VÒNG LẶP BAY NGANG CHỈ DÙNG VELOCITY (KHÔNG DÙNG CFRAME)
+    -- 1. VÒNG LẶP BAY NGANG DƯỚI LÒNG ĐẤT (KHÔNG DÙNG CFRAME ĐỂ TELE)
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
         local dist = (flatCur - flatTgt).Magnitude
         
-        if dist <= 4 then break end -- Đến gần tọa độ đích thì dừng bay ngang
+        if dist <= 4 then break end -- Đến gần sát tọa độ đích thì dừng bay ngang
         
         local dir = (flatTgt - flatCur).Unit
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
@@ -94,11 +94,10 @@ local function flyToFix()
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
         end
         
-        -- Chống kẹt vật lý trong lúc đang di chuyển
         if (r.Position - lastPos).Magnitude < 0.5 then
             stuckCount = stuckCount + 1
             if stuckCount >= 15 then
-                r.Velocity = Vector3.new(0, 10, 0) -- Nhích nhẹ lên thay vì tele
+                r.Velocity = Vector3.new(0, 10, 0)
                 stuckCount = 0
             end
         else
@@ -109,31 +108,30 @@ local function flyToFix()
         task.wait()
     end
     
-    -- ĐẨY NHÂN VẬT LÊN MẶT ĐẤT HOÀN TOÀN BẰNG VẬN TỐC VẬT LÝ
+    -- 2. GIAI ĐOẠN TRỒI LÊN MẶT SÀN (GIỮ NGUYÊN NOCLIP ĐỂ KHÔNG BỊ KẸT)
     if act and r and r.Parent then
-        -- Mở noclip tạm thời để đi xuyên từ dưới đất lên sàn
-        enableNoclip(c)
-        -- Đẩy liên tục cho đến khi vượt qua độ cao mặt sàn mong muốn
-        while act and r and r.Parent and r.Position.Y < tg.Y do
-            r.Velocity = Vector3.new(0, 60, 0) 
+        -- Vòng lặp ép nhân vật đi lên bằng lực đẩy cho tới khi vượt qua hẳn mặt sàn tg.Y
+        while act and r and r.Parent and r.Position.Y < (tg.Y + 1) do
+            enableNoclip(c) -- Liên tục khóa Noclip trong lúc trồi lên
+            r.Velocity = Vector3.new(0, 60, 0) -- Đẩy nhân vật lên mượt mà bằng vật lý
             task.wait()
         end
     end
     
-    -- KHI ĐÃ TRỒI LÊN TRÊN SÀN THÀNH CÔNG: KHÓA CHẶT TRẠNG THÁI
-    En = false 
+    -- 3. ĐÃ LÊN TRÊN SÀN AN TOÀN -> KHÓA CHẶT TRẠNG THÁI VÀ TẮT NOCLIP
+    En = false -- Kết thúc quá trình bay và trồi
     if r and r.Parent then
         r.Velocity = Vector3.zero
         disableFreefall(h, r)
     end
     
-    disableNoclip(c) -- TẮT HẲN NOCLIP ĐỂ ĐỨNG TRÊN SÀN ĐÁNH QUÁI
+    disableNoclip(c) -- TẮT HẲN NOCLIP ĐỂ ĐỨNG CHẮC TRÊN SÀN TREO MÁY
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
 
--- VÒNG LẶP CHẠY NGẦM ĐÃ DỌN SẠCH (KHÔNG CAN THIỆP TỌA ĐỘ, KHÔNG GÂY TELE GIẬT NGƯỢC)
+-- VÒNG LẶP QUÉT ĐỒNG BỘ (CHỈ QUẢN LÝ NOCLIP VÀ RAGDOLL, TUYỆT ĐỐI KHÔNG GÂY TELE)
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -143,9 +141,9 @@ task.spawn(function()
                 applyAntiRagdoll(h) 
                 
                 if En then
-                    enableNoclip(c) -- Chỉ noclip khi đang bay ngầm
+                    enableNoclip(c) -- Luôn luôn giữ Noclip trong suốt thời gian bay và ngoi lên sàn
                 else
-                    disableNoclip(c) -- Đến nơi bắt buộc tắt noclip hoàn toàn để treo máy
+                    disableNoclip(c) -- Đứng trên sàn rồi thì khóa chặt va chạm, tắt hẳn Noclip
                 end
             end
         else
