@@ -1,4 +1,4 @@
---code số 30b: CLONE B - FIX VĂNG KHI TỚI NƠI + TẮT HẲN NOCLIP KHI ĐẾN ĐÍCH
+--code số 30b: CLONE B - CHỈ BAY MƯỢT + KHÔNG TELE + TẮT NOCLIP KHI ĐẾN ĐÍCH
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -40,7 +40,6 @@ local function disableNoclip(c)
     end
 end
 
--- Hàm chống Ragdoll để nhân vật không bị quái đánh té ngã ngửa
 local function applyAntiRagdoll(h)
     if not h then return end
     h:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
@@ -64,30 +63,32 @@ end
 local function flyToFix()
     if not act then return end
     stb = false
-    En = true -- Bắt đầu trạng thái bay
+    En = true 
     local c, h, r = get()
     if not r or not h then return end
     
     applyAntiRagdoll(h)
     local tg = FIX_STAND
+    
+    -- Bay ở độ cao bằng đúng độ cao đích trừ đi khoảng trống dưới chân (không hạ quá sâu)
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
-    enableNoclip(c) -- BẬT NOCLIP KHI BAY
+    enableNoclip(c) 
     
-    r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
+    -- Xóa bỏ hoàn toàn Anchored gây khựng giật lúc bắt đầu bay
     r.Velocity = Vector3.zero
-    r.Anchored = true
-    task.wait(0.1)
-    r.Anchored = false
     
     local lastPos = r.Position
     local stuckCount = 0
     
+    -- VÒNG LẶP BAY CHÍNH (DI CHUYỂN MẶT PHẲNG XZ)
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
         local dist = (flatCur - flatTgt).Magnitude
-        if dist <= 5 then break end
+        
+        -- Khi đến sát mục tiêu trong phạm vi nhỏ thì dừng vòng lặp bay ngang
+        if dist <= 3 then break end
         
         local dir = (flatTgt - flatCur).Unit
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
@@ -116,57 +117,44 @@ local function flyToFix()
         task.wait()
     end
     
-    En = false -- KẾT THÚC BAY
-    r.Velocity = Vector3.zero
-    
-    -- KHÓA VỊ TRÍ TRƯỚC KHI TRỒI LÊN
-    if r and r.Parent then
-        r.Anchored = true
-        task.wait(0.05)
-        
-        local targetY = tg.Y
-        local startY = r.Position.Y
-        
-        for t = 0, 1, 0.02 do
-            if not act or not r or not r.Parent then break end
-            local newY = startY + (targetY - startY) * t
-            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
-            task.wait(0.02)
+    -- GIAI ĐOẠN TRỒI LÊN MƯỢT MÀ (KHÔNG TELEPORT)
+    if act and r and r.Parent then
+        -- Sử dụng vận tốc Vector3 tiến lên theo trục Y thay vì dùng CFrame gán cứng tọa độ
+        while act and r and r.Parent and r.Position.Y < tg.Y - 0.5 do
+            r.Velocity = Vector3.new(0, 50, 0) -- Đẩy nhân vật trồi lên mượt mà
+            task.wait()
         end
-        
-        r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
-        r.Anchored = false
-        r.Velocity = Vector3.zero
-        task.wait(0.1)
     end
     
+    En = false -- KẾT THÚC TRẠNG THÁI BAY
     if r and r.Parent then
+        r.Velocity = Vector3.zero
         disableFreefall(h, r)
     end
-    disableNoclip(c) -- TẮT HẲN NOCLIP KHI ĐÃ ĐẾN NƠI
+    
+    disableNoclip(c) -- TẮT HẲN NOCLIP KHI ĐÃ ĐẾN ĐÍCH BẰNG ĐƯỜNG BAY
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
 
--- VÒNG LẶP CHỈ LÀM NHIỆM VỤ CHỐNG RAGDOLL + AN TOÀN VOID (BỎ HOÀN TOÀN BẬT NOCLIP LẠI)
+-- VÒNG LẶP QUÉT GIỮ AN TOÀN TUYỆT ĐỐI
 task.spawn(function()
     while true do
         task.wait(0.1)
         if act then
             local c, h, r = get()
             if c and r and h then
-                applyAntiRagdoll(h) -- Luôn giữ nhân vật đứng thẳng chống ragdoll khi bị quái văng skill
+                applyAntiRagdoll(h) 
                 
                 if En then
-                    enableNoclip(c) -- Chỉ Noclip khi đang bay
+                    enableNoclip(c) 
                 else
-                    disableNoclip(c) -- Đến nơi là tắt sạch Noclip, ép nhân vật có va chạm vật lý với sàn
+                    disableNoclip(c) -- Khóa chặt va chạm, tắt hoàn toàn Noclip khi đã đứng im train
                     
-                    -- PHÒNG THỦ KHẨN CẤP: Nếu chẳng may bị đẩy lọt xuống sàn, kéo giật lại ngay lập tức
-                    if r.Position.Y < (FIX_STAND.Y - 4) then
-                        r.Velocity = Vector3.zero
-                        r.CFrame = CFrame.new(FIX_STAND.X, FIX_STAND.Y, FIX_STAND.Z)
+                    -- PHÒNG THỦ KHẨN CẤP: Chỉ phòng hờ nếu quái đẩy lọt sàn quá sâu
+                    if r.Position.Y < (FIX_STAND.Y - 5) then
+                        r.Velocity = Vector3.new(0, 30, 0) -- Đẩy nhẹ nhân vật lên lại thay vì dùng tele
                     end
                 end
             end
