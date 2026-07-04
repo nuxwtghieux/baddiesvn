@@ -1,4 +1,4 @@
---code số 30b: CLONE B - CHỈ BAY MƯỢT + KHÔNG TELE + TẮT NOCLIP KHI ĐẾN ĐÍCH
+--code số 30b: CLONE B - CHỈ BAY MƯỢT + KHÔNG TELE + CHỐNG KẸT LÒNG ĐẤT
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -70,12 +70,10 @@ local function flyToFix()
     applyAntiRagdoll(h)
     local tg = FIX_STAND
     
-    -- Bay ở độ cao bằng đúng độ cao đích trừ đi khoảng trống dưới chân (không hạ quá sâu)
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
     enableNoclip(c) 
     
-    -- Xóa bỏ hoàn toàn Anchored gây khựng giật lúc bắt đầu bay
     r.Velocity = Vector3.zero
     
     local lastPos = r.Position
@@ -87,7 +85,6 @@ local function flyToFix()
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
         local dist = (flatCur - flatTgt).Magnitude
         
-        -- Khi đến sát mục tiêu trong phạm vi nhỏ thì dừng vòng lặp bay ngang
         if dist <= 3 then break end
         
         local dir = (flatTgt - flatCur).Unit
@@ -117,28 +114,27 @@ local function flyToFix()
         task.wait()
     end
     
-    -- GIAI ĐOẠN TRỒI LÊN MƯỢT MÀ (KHÔNG TELEPORT)
+    -- GIAI ĐOẠN TRỒI LÊN MƯỢT MÀ BẰNG VẬN TỐC
     if act and r and r.Parent then
-        -- Sử dụng vận tốc Vector3 tiến lên theo trục Y thay vì dùng CFrame gán cứng tọa độ
         while act and r and r.Parent and r.Position.Y < tg.Y - 0.5 do
-            r.Velocity = Vector3.new(0, 50, 0) -- Đẩy nhân vật trồi lên mượt mà
+            r.Velocity = Vector3.new(0, 60, 0) -- Tăng nhẹ lực đẩy lên 60 để mạnh hơn
             task.wait()
         end
     end
     
-    En = false -- KẾT THÚC TRẠNG THÁI BAY
+    En = false 
     if r and r.Parent then
         r.Velocity = Vector3.zero
         disableFreefall(h, r)
     end
     
-    disableNoclip(c) -- TẮT HẲN NOCLIP KHI ĐÃ ĐẾN ĐÍCH BẰNG ĐƯỜNG BAY
+    disableNoclip(c) 
     h.WalkSpeed = MAX_SPEED
     Y = nil
     stb = true
 end
 
--- VÒNG LẶP QUÉT GIỮ AN TOÀN TUYỆT ĐỐI
+-- VÒNG LẶP KIỂM TRA TOÀN DIỆN VÀ TỰ ĐỘNG NÂNG TRỤC Y KHI KẸT
 task.spawn(function()
     while true do
         task.wait(0.1)
@@ -150,11 +146,17 @@ task.spawn(function()
                 if En then
                     enableNoclip(c) 
                 else
-                    disableNoclip(c) -- Khóa chặt va chạm, tắt hoàn toàn Noclip khi đã đứng im train
+                    -- KHI ĐÃ ĐẾN TOẠ ĐỘ ĐÍCH (ĐÃ DỪNG BAY)
+                    disableNoclip(c)
                     
-                    -- PHÒNG THỦ KHẨN CẤP: Chỉ phòng hờ nếu quái đẩy lọt sàn quá sâu
-                    if r.Position.Y < (FIX_STAND.Y - 5) then
-                        r.Velocity = Vector3.new(0, 30, 0) -- Đẩy nhẹ nhân vật lên lại thay vì dùng tele
+                    -- CƠ CHẾ SỬA LỖI KẸT LÒNG ĐẤT:
+                    -- Nếu trục Y hiện tại thấp hơn tọa độ mặt sàn mong muốn (FIX_STAND.Y - 0.5)
+                    if r.Position.Y < (FIX_STAND.Y - 0.5) then
+                        -- Tiến hành kích hoạt Noclip tạm thời để đi xuyên qua sàn lên trên
+                        enableNoclip(c)
+                        -- Nâng dần CFrame trục Y lên một khoảng nhỏ (0.5 stud mỗi 0.02 giây) để trồi lên mượt mà, không bị giật tele mạnh
+                        r.CFrame = r.CFrame + Vector3.new(0, 0.5, 0)
+                        r.Velocity = Vector3.new(r.Velocity.X, 5, r.Velocity.Z)
                     end
                 end
             end
