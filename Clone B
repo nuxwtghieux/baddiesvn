@@ -1,24 +1,22 @@
---code số 30b: CLONE B - 100% VẬN TỐC THỦ CÔNG - KHÔNG MỘT LỆNH CFRAME TELE
+--code số 32: BAY ĐẾN TỌA ĐỘ + ĐỨNG IM + AUTO RESPAWN BAY LẠI (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local CoreGui = game:GetService("CoreGui")
+local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+pcall(function() if PlayerGui:FindFirstChild("FLY_GUI") then PlayerGui.FLY_GUI:Destroy() end end)
 
 local FIX = Vector3.new(563.2, 3.9, -20.8)
-local FIX_STAND = Vector3.new(FIX.X + 3, FIX.Y, FIX.Z)
-local RAD = 50
-local FLY_SPEED = 400
+local FIX_STAND = FIX + Vector3.new(3, 0, 0)
 local HEAD_OFFSET = 8
-local MAX_SPEED = 18
+local FLY_SPEED = 200
 local STUCK_TIMEOUT = 10
+local MAX_SPEED = 18
 
-local act = false
-local stb = false
-local noc = false
-local Y = nil
-local En = false
+local act, En, noc, Y = false, false, false, nil
 
-local function get()
+local function getChar()
     local c = player.Character
     if not c then return nil, nil, nil end
     return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
@@ -40,13 +38,6 @@ local function disableNoclip(c)
     end
 end
 
-local function applyAntiRagdoll(h)
-    if not h then return end
-    h:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-    h:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-    h:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
-end
-
 local function enableFreefall(h)
     h.PlatformStand = true
     workspace.Gravity = 0
@@ -57,133 +48,93 @@ local function disableFreefall(h, r)
     h.AutoRotate = true
     workspace.Gravity = 196.2
     if r then r.Velocity = Vector3.zero end
-    h.WalkSpeed = MAX_SPEED
+    h.WalkSpeed = 0
 end
 
 local function flyToFix()
     if not act then return end
-    stb = false
-    En = true 
-    local c, h, r = get()
+    En = true
+    local c, h, r = getChar()
     if not r or not h then return end
-    
-    applyAntiRagdoll(h)
     local tg = FIX_STAND
-    
     Y = tg.Y - HEAD_OFFSET
     enableFreefall(h)
-    enableNoclip(c) 
-    
+    enableNoclip(c)
+    r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
-    
-    -- XÓA HẲN ĐOẠN ĐỊNH VỊ ĐẦU CFRAME ĐỂ KHÔNG TELE NGAY TỪ LÚC ẤN START
-    -- Cho nhân vật tự lặn xuống độ cao Y bằng lực đẩy vật lý mượt mà
-    while act and r and r.Parent and r.Position.Y > Y + 1 do
-        r.Velocity = Vector3.new(0, -50, 0)
-        task.wait()
-    end
-    
-    -- VÒNG LẶP BAY NGANG DUY TRÌ BẰNG VẬN TỐC (ĐÃ XÓA CHECK CFRAME NỬA ĐƯỜNG)
+    local lastPos = r.Position
+    local stuckTime = 0
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
-        local dist = (flatCur - flatTgt).Magnitude
-        
-        if dist <= 5 then break end -- Đến gần đích thì dừng bay ngang
-        
+        if (flatCur - flatTgt).Magnitude <= 5 then break end
         local dir = (flatTgt - flatCur).Unit
-        
-        -- Tính toán lực đẩy mượt mà theo cả 3 trục X, Y, Z (Giữ độ cao Y ổn định bằng Velocity)
-        local targetYVelocity = (Y - r.Position.Y) * 5
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, targetYVelocity, dir.Z * FLY_SPEED)
-        
+        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
+        if math.abs(r.Position.Y - Y) > 0.5 then
+            r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
+        end
         h.AutoRotate = false
-        -- Chỉ xoay hướng nhìn của nhân vật bằng CFrame (Không thay đổi vị trí tọa độ gốc)
         if dir.Magnitude > 0.01 then
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
         end
-        
+        if (r.Position - lastPos).Magnitude < 0.5 then
+            stuckTime = stuckTime + 0.1
+            if stuckTime >= STUCK_TIMEOUT then break end
+        else
+            stuckTime = 0
+        end
+        lastPos = r.Position
         task.wait()
     end
-    
-    -- GIAI ĐOẠN TRỒI LÊN MẶT SÀN (GIỮ NOCLIP ĐỂ XUYÊN SÀN, CHỈ DÙNG LỰC ĐẨY LÊN)
-    if act and r and r.Parent then
-        while act and r and r.Parent and r.Position.Y < tg.Y do
-            enableNoclip(c) -- Giữ Noclip cho đến khi lên hẳn mặt đất
-            r.Velocity = Vector3.new(0, 60, 0) -- Đẩy thẳng lên bằng lực vật lý mượt mà
-            task.wait()
-        end
-    end
-    
-    -- ĐÃ TRỒI LÊN HOÀN TOÀN -> KHÓA CHẶT TRẠNG THÁI VÀ ĐỨNG IM
-    En = false 
+    En = false
+    r.Velocity = Vector3.zero
     if r and r.Parent then
-        r.Velocity = Vector3.zero
         disableFreefall(h, r)
+        task.wait(0.1)
+        local startY = r.Position.Y
+        local targetY = tg.Y
+        for t = 0, 1, 0.05 do
+            if not act or not r or not r.Parent then break end
+            local newY = startY + (targetY - startY) * t
+            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
+            r.Velocity = Vector3.zero
+            task.wait(0.02)
+        end
+        r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
+        r.Velocity = Vector3.zero
+        task.wait(0.2)
     end
-    
-    disableNoclip(c) -- TẮT HẲN NOCLIP ĐỂ ĐỨNG CHẮC CHẮN TRÊN SÀN TREO MÁY
-    h.WalkSpeed = MAX_SPEED
+    disableNoclip(c)
+    h.WalkSpeed = 0
     Y = nil
-    stb = true
 end
 
--- VÒNG LẶP QUÉT TRẠNG THÁI (KHÔNG CÓ LỆNH CFRAME DI CHUYỂN, CHỈ QUẢN LÝ NOCLIP VÀ RAGDOLL)
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        if act then
-            local c, h, r = get()
-            if c and r and h then
-                applyAntiRagdoll(h) 
-                
-                if En then
-                    enableNoclip(c) -- Đang bay/trồi lên thì bật noclip xuyên lòng đất
-                else
-                    disableNoclip(c) -- Đứng trên sàn rồi thì tắt hẳn noclip để farm
-                end
-            end
-        else
-            local c = player.Character
-            if c then disableNoclip(c) end
-        end
-    end
-end)
-
-player.CharacterAdded:Connect(function()
-    if act then
-        task.wait(1)
-        flyToFix()
-    end
-end)
-
--- GUI
-if CoreGui:FindFirstChild("ACTUAL_TG_GUI_B") then CoreGui["ACTUAL_TG_GUI_B"]:Destroy() end
-local g = Instance.new("ScreenGui", CoreGui)
-g.Name = "ACTUAL_TG_GUI_B"
+local g = Instance.new("ScreenGui")
+g.Name = "FLY_GUI"
 g.ResetOnSpawn = false
+g.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+g.Parent = PlayerGui
 
 local mf = Instance.new("Frame", g)
-mf.Size = UDim2.new(0, 200, 0, 100)
-mf.Position = UDim2.new(0.5, -100, 0.5, -50)
-mf.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+mf.Size = UDim2.new(0, 200, 0, 150)
+mf.Position = UDim2.new(0, 20, 0.5, -75)
+mf.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mf.BackgroundTransparency = 0.15
+mf.BorderSizePixel = 0
 mf.Active = true
-mf.Draggable = true
-Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 12)
-
-local s = Instance.new("UIStroke", mf)
-s.Color = Color3.fromRGB(250, 50, 100)
-s.Thickness = 2
+Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 14)
 
 local head = Instance.new("Frame", mf)
-head.Size = UDim2.new(1, 0, 0, 30)
-head.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
-Instance.new("UICorner", head).CornerRadius = UDim.new(0, 12)
+head.Size = UDim2.new(1, 0, 0, 32)
+head.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+head.BackgroundTransparency = 0.2
+head.BorderSizePixel = 0
+Instance.new("UICorner", head).CornerRadius = UDim.new(0, 14)
 
 local title = Instance.new("TextLabel", head)
-title.Size = UDim2.new(0.6, 0, 1, 0)
+title.Size = UDim2.new(0.5, 0, 1, 0)
 title.Position = UDim2.new(0.05, 0, 0, 0)
-title.Text = "CLONE B SYSTEM"
+title.Text = "BAY + DUNG IM"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 11
@@ -192,73 +143,147 @@ title.TextXAlignment = Enum.TextXAlignment.Left
 
 local cls = Instance.new("TextButton", head)
 cls.Size = UDim2.new(0, 22, 0, 22)
-cls.Position = UDim2.new(1, -28, 0, 4)
-cls.Text = "✕"
+cls.Position = UDim2.new(1, -28, 0, 5)
+cls.Text = "x"
 cls.TextColor3 = Color3.new(1, 1, 1)
 cls.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+cls.Font = Enum.Font.GothamBold
+cls.TextSize = 11
 Instance.new("UICorner", cls).CornerRadius = UDim.new(0, 4)
 
 local min = Instance.new("TextButton", head)
 min.Size = UDim2.new(0, 22, 0, 22)
-min.Position = UDim2.new(1, -54, 0, 4)
-min.Text = "─"
+min.Position = UDim2.new(1, -54, 0, 5)
+min.Text = "-"
 min.TextColor3 = Color3.new(1, 1, 1)
 min.BackgroundColor3 = Color3.fromRGB(200, 150, 30)
+min.Font = Enum.Font.GothamBold
+min.TextSize = 11
 Instance.new("UICorner", min).CornerRadius = UDim.new(0, 4)
 
 local body = Instance.new("Frame", mf)
-body.Size = UDim2.new(1, 0, 1, -30)
-body.Position = UDim2.new(0, 0, 0, 30)
+body.Size = UDim2.new(1, 0, 1, -32)
+body.Position = UDim2.new(0, 0, 0, 32)
 body.BackgroundTransparency = 1
 
-local btn = Instance.new("TextButton", body)
-btn.Size = UDim2.new(0, 110, 0, 35)
-btn.Position = UDim2.new(0, 10, 1, -50)
-btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-btn.Text = "▶ START B"
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 12
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+local posLabel = Instance.new("TextLabel", body)
+posLabel.Size = UDim2.new(1, -20, 0, 36)
+posLabel.Position = UDim2.new(0, 10, 0, 4)
+posLabel.Text = "Toa do: " .. FIX.X .. ", " .. FIX.Y .. ", " .. FIX.Z
+posLabel.TextColor3 = Color3.new(1, 1, 1)
+posLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+posLabel.Font = Enum.Font.Gotham
+posLabel.TextSize = 10
+posLabel.TextWrapped = true
+Instance.new("UICorner", posLabel).CornerRadius = UDim.new(0, 4)
 
-local cpy = Instance.new("TextButton", body)
-cpy.Size = UDim2.new(0, 60, 0, 35)
-cpy.Position = UDim2.new(1, -70, 0, 20)
-cpy.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-cpy.Text = "📋 COPY"
-cpy.TextColor3 = Color3.new(1, 1, 1)
-cpy.Font = Enum.Font.GothamBold
-cpy.TextSize = 11
-Instance.new("UICorner", cpy).CornerRadius = UDim.new(0, 5)
+local statusLabel = Instance.new("TextLabel", body)
+statusLabel.Size = UDim2.new(1, -20, 0, 22)
+statusLabel.Position = UDim2.new(0, 10, 0, 44)
+statusLabel.Text = "Trang thai: DUNG"
+statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Font = Enum.Font.GothamBold
+statusLabel.TextSize = 10
+
+local cpyBtn = Instance.new("TextButton", body)
+cpyBtn.Size = UDim2.new(1, -20, 0, 26)
+cpyBtn.Position = UDim2.new(0, 10, 0, 72)
+cpyBtn.Text = "COPY TOA DO"
+cpyBtn.TextColor3 = Color3.new(1, 1, 1)
+cpyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+cpyBtn.Font = Enum.Font.GothamBold
+cpyBtn.TextSize = 11
+Instance.new("UICorner", cpyBtn).CornerRadius = UDim.new(0, 4)
+
+local flyBtn = Instance.new("TextButton", body)
+flyBtn.Size = UDim2.new(1, -20, 0, 26)
+flyBtn.Position = UDim2.new(0, 10, 0, 104)
+flyBtn.Text = "START"
+flyBtn.TextColor3 = Color3.new(1, 1, 1)
+flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+flyBtn.Font = Enum.Font.GothamBold
+flyBtn.TextSize = 11
+Instance.new("UICorner", flyBtn).CornerRadius = UDim.new(0, 4)
 
 min.MouseButton1Click:Connect(function()
     body.Visible = not body.Visible
-    mf.Size = body.Visible and UDim2.new(0, 200, 0, 100) or UDim2.new(0, 200, 0, 30)
+    mf.Size = body.Visible and UDim2.new(0, 200, 0, 150) or UDim2.new(0, 200, 0, 32)
 end)
 
 cls.MouseButton1Click:Connect(function()
-    act, En = false, false
-    local c = player.Character
-    if c then disableNoclip(c) end
+    act = false
+    En = false
     g:Destroy()
 end)
 
-cpy.MouseButton1Click:Connect(function()
-    pcall(function() setclipboard(tostring(FIX)) end)
+cpyBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard(FIX.X .. ", " .. FIX.Y .. ", " .. FIX.Z) end)
 end)
 
-btn.MouseButton1Click:Connect(function()
+flyBtn.MouseButton1Click:Connect(function()
     if not act then
         act = true
-        btn.Text = "🛑 STOP B"
-        btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        task.spawn(function() flyToFix() end)
+        flyBtn.Text = "STOP"
+        flyBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+        statusLabel.Text = "Trang thai: DANG BAY..."
+        statusLabel.TextColor3 = Color3.new(0, 1, 0)
+        task.spawn(function()
+            flyToFix()
+            if act then
+                statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
+                statusLabel.TextColor3 = Color3.new(0, 1, 0)
+            end
+        end)
     else
-        act, En = false, false
-        btn.Text = "▶ START B"
-        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        local c, h, r = get()
-        if h and r then h:MoveTo(r.Position) end
-        if c then disableNoclip(c) end
+        act = false
+        En = false
+        flyBtn.Text = "START"
+        flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        statusLabel.Text = "Trang thai: DUNG"
+        statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
+        local _, h, r = getChar()
+        if h and r then
+            h.WalkSpeed = 16
+            h:MoveTo(r.Position)
+        end
+    end
+end)
+
+player.CharacterAdded:Connect(function()
+    if act then
+        statusLabel.Text = "Trang thai: RESPAWN - DANG BAY LAI..."
+        statusLabel.TextColor3 = Color3.new(1, 1, 0)
+        task.wait(1)
+        task.spawn(function()
+            flyToFix()
+            if act then
+                statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
+                statusLabel.TextColor3 = Color3.new(0, 1, 0)
+            end
+        end)
+    end
+end)
+
+local dragToggle, dragInput, dragStart, startPos = false, nil, nil, nil
+mf.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle = true
+        dragStart = input.Position
+        startPos = mf.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragToggle = false end
+        end)
+    end
+end)
+mf.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+UIS.InputChanged:Connect(function(input)
+    if input == dragInput and dragToggle then
+        local delta = input.Position - dragStart
+        mf.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
