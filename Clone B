@@ -1,4 +1,4 @@
---code số 30b: CLONE B - CHỈ BAY THUẦN, KHÔNG TELE, BỎ HẾT TRỒI LÊN
+--code số 30b: CLONE B - BAY THUẦN, KHÔNG TRỒI LÊN, KHÔNG TELE
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -76,6 +76,7 @@ local function flyToFix()
     local lastPos = r.Position
     local stuckTime = 0
     
+    -- BAY NGẦM ĐẾN TOẠ ĐỘ X,Z
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(tg.X, 0, tg.Z)
@@ -104,18 +105,22 @@ local function flyToFix()
     
     En = false
     r.Velocity = Vector3.zero
+    
+    -- BAY LÊN MẶT ĐẤT (KHÔNG TRỒI LÊN TỪ TỪ, BAY THẲNG)
     if r and r.Parent then
-        disableFreefall(h, r)
-        task.wait(0.1)
-        -- BAY LÊN MẶT ĐẤT THAY VÌ TELE
         local targetY = tg.Y
+        r.Velocity = Vector3.new(0, 50, 0)
+        task.wait(0.1)
         while act and r and r.Parent and r.Position.Y < targetY do
-            r.Velocity = Vector3.new(0, 30, 0)
             task.wait()
         end
         r.Velocity = Vector3.zero
         r.CFrame = CFrame.new(r.Position.X, targetY, r.Position.Z)
-        task.wait(0.2)
+        task.wait(0.1)
+    end
+    
+    if r and r.Parent then
+        disableFreefall(h, r)
     end
     disableNoclip(c)
     h.WalkSpeed = MAX_SPEED
