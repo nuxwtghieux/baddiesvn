@@ -1,4 +1,4 @@
---code số 30b: CLONE B - FIX GIỐNG CLONE A (BAY + RESPAWN)
+--code số 30b: CLONE B - FIX BỎ TELE + GIỮ NGUYÊN VỊ TRÍ
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
@@ -115,7 +115,7 @@ local function flyToFix()
     stb = true
 end
 
--- GIỮ VỊ TRÍ KHI Ở NHÀ
+-- GIỮ VỊ TRÍ KHI Ở NHÀ (KHÔNG TELE)
 task.spawn(function()
     while true do
         task.wait(0.5)
@@ -123,8 +123,10 @@ task.spawn(function()
             local _, h, r = get()
             if r and h then
                 local dist = (r.Position - FIX_STAND).Magnitude
-                if dist > 5 then
+                if dist > 10 then
                     h:MoveTo(FIX_STAND)
+                else
+                    h:MoveTo(Vector3.zero)
                 end
             end
         end
