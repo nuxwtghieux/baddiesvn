@@ -1,4 +1,4 @@
---code số 35: BAY DƯỚI LÒNG ĐẤT ĐẾN TỌA ĐỘ + NOCLIP KHI BAY + TẮT NOCLIP KHI TỚI + AUTO RESPAWN (DELTAX MOBILE)
+--code số 36: BAY DƯỚI LÒNG ĐẤT SÂU -10 STUD + GIỮ ĐỘ CAO KHI ĐỨNG + AUTO RESPAWN (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -15,6 +15,7 @@ local STUCK_TIMEOUT = 10
 
 local act, En, noc = false, false, false
 local noclipConnection = nil
+local standConnection = nil
 
 local function getChar()
     local c = player.Character
@@ -43,6 +44,26 @@ local function disableNoclip()
     end
 end
 
+local function enableStandLock()
+    if standConnection then standConnection:Disconnect() end
+    standConnection = RunService.Stepped:Connect(function()
+        local _, _, r = getChar()
+        if r and r.Parent and not En then
+            if r.Position.Y < FIX_STAND.Y - 0.5 then
+                r.CFrame = CFrame.new(r.Position.X, FIX_STAND.Y, r.Position.Z)
+                r.Velocity = Vector3.zero
+            end
+        end
+    end)
+end
+
+local function disableStandLock()
+    if standConnection then
+        standConnection:Disconnect()
+        standConnection = nil
+    end
+end
+
 local function flyUnderground()
     if not act then return end
     En = true
@@ -51,6 +72,14 @@ local function flyUnderground()
     enableNoclip()
     h.PlatformStand = true
     workspace.Gravity = 0
+    local startY = r.Position.Y
+    for t = 0, 1, 0.08 do
+        if not act or not r or not r.Parent then break end
+        local newY = startY + (UNDERGROUND_Y - startY) * t
+        r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
+        r.Velocity = Vector3.zero
+        task.wait(0.02)
+    end
     r.CFrame = CFrame.new(r.Position.X, UNDERGROUND_Y, r.Position.Z)
     r.Velocity = Vector3.zero
     local lastPos = r.Position
@@ -61,9 +90,7 @@ local function flyUnderground()
         if (flatCur - flatTgt).Magnitude <= 3 then break end
         local dir = (flatTgt - flatCur).Unit
         r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
-        if math.abs(r.Position.Y - UNDERGROUND_Y) > 1 then
-            r.CFrame = CFrame.new(r.Position.X, UNDERGROUND_Y, r.Position.Z)
-        end
+        r.CFrame = CFrame.new(r.Position.X, UNDERGROUND_Y, r.Position.Z)
         h.AutoRotate = false
         if dir.Magnitude > 0.01 then
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
@@ -80,11 +107,11 @@ local function flyUnderground()
     En = false
     r.Velocity = Vector3.zero
     if r and r.Parent then
-        local startY = r.Position.Y
+        local curY = r.Position.Y
         local targetY = FIX_STAND.Y
         for t = 0, 1, 0.05 do
             if not act or not r or not r.Parent then break end
-            local newY = startY + (targetY - startY) * t
+            local newY = curY + (targetY - curY) * t
             r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
             r.Velocity = Vector3.zero
             task.wait(0.02)
@@ -98,6 +125,7 @@ local function flyUnderground()
     workspace.Gravity = 196.2
     disableNoclip()
     if h then h.WalkSpeed = 0 end
+    enableStandLock()
 end
 
 local g = Instance.new("ScreenGui")
@@ -215,6 +243,7 @@ cls.MouseButton1Click:Connect(function()
     act = false
     En = false
     disableNoclip()
+    disableStandLock()
     g:Destroy()
 end)
 
@@ -244,6 +273,7 @@ flyBtn.MouseButton1Click:Connect(function()
         act = false
         En = false
         disableNoclip()
+        disableStandLock()
         flyBtn.Text = "START"
         flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
         statusLabel.Text = "Trang thai: DUNG"
