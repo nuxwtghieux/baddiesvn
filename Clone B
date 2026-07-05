@@ -1,374 +1,150 @@
---code so 50: BAY NGAM + TROI LEN CHAM + DAP DUNG TOA DO KHONG KET + HUY TRANG THAI BAY + ZONE + AUTO RESPAWN (DELTAX MOBILE)
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
-local nguoi_choi = Players.LocalPlayer
-local gui_nguoi_choi = nguoi_choi:WaitForChild("PlayerGui")
+--code số 13: Kết hợp code 09 + code 10: Dịch Spawn đến toạ độ + Auto fix hồi sinh đúng chỗ
+local toaDoSpawn = Vector3.new(563.2, 3.9, -20.8)
+local player = game.Players.LocalPlayer
 
-pcall(function() if gui_nguoi_choi:FindFirstChild("FLY_GUI") then gui_nguoi_choi.FLY_GUI:Destroy() end end)
-
-local toa_do_goc = Vector3.new(563.2, 3.9, -20.8)
-local toa_do_dung = toa_do_goc + Vector3.new(3, 0, 0)
-local do_sau = toa_do_dung.Y - 10
-local toc_do_bay = 200
-local toc_do_chinh = 20
-local toc_do_len = 60
-local thoi_gian_ket = 999999
-local ban_kinh_vung = 50
-local toc_do_chay = 18
-
-local dang_hoat_dong, dang_bay, dang_xuyen, do_cao_bay = false, false, false, nil
-local ket_noi_xuyen = nil
-local dang_di_ve = false
-local da_dap_xong = false
-
-local function lay_nhan_vat()
-    local c = nguoi_choi.Character
-    if not c then return nil, nil, nil end
-    return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
-end
-
-local function bat_xuyen()
-    if ket_noi_xuyen then ket_noi_xuyen:Disconnect() end
-    dang_xuyen = true
-    ket_noi_xuyen = RunService.Stepped:Connect(function()
-        local c = nguoi_choi.Character
-        if c and dang_xuyen then
-            for _, v in pairs(c:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = false end
-            end
-        end
-    end)
-end
-
-local function tat_xuyen()
-    dang_xuyen = false
-    if ket_noi_xuyen then
-        ket_noi_xuyen:Disconnect()
-        ket_noi_xuyen = nil
-    end
-end
-
-local function bat_roi_tu_do(h)
-    h.PlatformStand = true
-    workspace.Gravity = 0
-end
-
-local function tat_roi_tu_do(h)
-    h.PlatformStand = false
-    h.AutoRotate = true
-    workspace.Gravity = 196.2
-    h.WalkSpeed = 0
-    h.JumpPower = 0
-end
-
-local function di_bo_ve_vung()
-    if not dang_hoat_dong or dang_di_ve then return end
-    dang_di_ve = true
-    local _, h, r = lay_nhan_vat()
-    if not h or not r then dang_di_ve = false return end
-    h.WalkSpeed = toc_do_chay
-    h.JumpPower = 50
-    h.AutoRotate = true
-    while dang_hoat_dong and dang_di_ve and r and r.Parent do
-        local khoang_cach = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(toa_do_dung.X, 0, toa_do_dung.Z)).Magnitude
-        if khoang_cach <= 3 then break end
-        local huong = (Vector3.new(toa_do_dung.X, 0, toa_do_dung.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Unit
-        h:MoveTo(toa_do_dung)
-        task.wait(0.05)
-    end
-    dang_di_ve = false
-    h.WalkSpeed = 0
-    h.JumpPower = 0
-    da_dap_xong = true
-end
-
-local function bay_toi_vi_tri()
-    if not dang_hoat_dong then return end
-    dang_bay = true
-    da_dap_xong = false
-    local c, h, r = lay_nhan_vat()
-    if not r or not h then dang_bay = false return end
-    bat_xuyen()
-    do_cao_bay = do_sau
-    bat_roi_tu_do(h)
-    r.Velocity = Vector3.new(0, -500, 0)
-    while dang_hoat_dong and r and r.Parent and r.Position.Y > do_cao_bay + 1 do task.wait(0.01) end
-    r.Velocity = Vector3.zero
-    while dang_hoat_dong and dang_bay and r and r.Parent do
-        local phang_hien_tai = Vector3.new(r.Position.X, 0, r.Position.Z)
-        local phang_dich = Vector3.new(toa_do_dung.X, 0, toa_do_dung.Z)
-        if (phang_hien_tai - phang_dich).Magnitude <= 5 then break end
-        local huong = (phang_dich - phang_hien_tai).Unit
-        r.Velocity = Vector3.new(huong.X * toc_do_bay, 0, huong.Z * toc_do_bay)
-        if math.abs(r.Position.Y - do_cao_bay) > 0.5 then
-            r.CFrame = CFrame.new(r.Position.X, do_cao_bay, r.Position.Z)
-        end
-        h.AutoRotate = false
-        if huong.Magnitude > 0.01 then
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + huong.X, r.Position.Y, r.Position.Z + huong.Z))
-        end
-        task.wait()
-    end
-    dang_bay = false
-    r.Velocity = Vector3.zero
-    if r and r.Parent then
-        tat_roi_tu_do(h)
-        task.wait(0.1)
-        local do_cao_hien_tai = r.Position.Y
-        local do_cao_dich = toa_do_dung.Y
-        for t = 0, 1, 0.03 do
-            if not dang_hoat_dong or not r or not r.Parent then break end
-            local do_cao_moi = do_cao_hien_tai + (do_cao_dich - do_cao_hien_tai) * t
-            r.CFrame = CFrame.new(r.Position.X, do_cao_moi, r.Position.Z)
-            r.Velocity = Vector3.zero
-            task.wait(0.02)
-        end
-        local phang_hien_tai = Vector3.new(r.Position.X, 0, r.Position.Z)
-        local phang_dich = Vector3.new(toa_do_dung.X, 0, toa_do_dung.Z)
-        if (phang_hien_tai - phang_dich).Magnitude > 0.5 then
-            local huong = (phang_dich - phang_hien_tai).Unit
-            for t = 0, 1, 0.05 do
-                if not dang_hoat_dong or not r or not r.Parent then break end
-                local phang_moi = phang_hien_tai + (phang_dich - phang_hien_tai) * t
-                r.CFrame = CFrame.new(phang_moi.X, toa_do_dung.Y, phang_moi.Z)
-                r.Velocity = Vector3.zero
-                task.wait(0.02)
-            end
-        end
-        r.CFrame = CFrame.new(toa_do_dung.X, toa_do_dung.Y, toa_do_dung.Z)
-        r.Velocity = Vector3.zero
-    end
-    tat_xuyen()
-    if h then
-        h.WalkSpeed = 0
-        h.JumpPower = 0
-        h.AutoRotate = true
-    end
-    do_cao_bay = nil
-    da_dap_xong = true
-end
-
-task.spawn(function()
-    while task.wait(0.5) do
-        if dang_hoat_dong and not dang_bay and not dang_di_ve and da_dap_xong then
-            local _, _, r = lay_nhan_vat()
-            if r and r.Parent then
-                local khoang_cach = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(toa_do_dung.X, 0, toa_do_dung.Z)).Magnitude
-                if khoang_cach > ban_kinh_vung then
-                    task.spawn(function() di_bo_ve_vung() end)
-                end
-            end
+local function dichSpawn()
+    local count = 0
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.ClassName == "SpawnLocation" then
+            pcall(function()
+                obj.CFrame = CFrame.new(toaDoSpawn)
+                obj.Duration = 0
+            end)
+            count = count + 1
         end
     end
+    return count
+end
+
+dichSpawn()
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.1)
+    local hrp = char:WaitForChild("HumanoidRootPart", 5)
+    if hrp then
+        hrp.CFrame = CFrame.new(toaDoSpawn)
+    end
+    dichSpawn()
 end)
+
+while task.wait(0.5) do
+    dichSpawn()
+end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "FLY_GUI"
-gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.Parent = gui_nguoi_choi
+gui.Name = "SpawnFullFix"
+gui.Parent = player:WaitForChild("PlayerGui")
 
-local khung_chinh = Instance.new("Frame", gui)
-khung_chinh.Size = UDim2.new(0, 200, 0, 160)
-khung_chinh.Position = UDim2.new(0, 20, 0.5, -80)
-khung_chinh.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-khung_chinh.BackgroundTransparency = 0.15
-khung_chinh.BorderSizePixel = 0
-khung_chinh.Active = true
-Instance.new("UICorner", khung_chinh).CornerRadius = UDim.new(0, 14)
+local f = Instance.new("Frame", gui)
+f.Name = "Main"
+f.BackgroundColor3 = Color3.fromRGB(16,16,26)
+f.Position = UDim2.new(0.5,-185,0.5,-100)
+f.Size = UDim2.new(0,370,0,200)
+f.Active = true
+f.Draggable = true
+Instance.new("UICorner",f).CornerRadius = UDim.new(0,14)
+Instance.new("UIGradient",f).Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(20,20,36)),ColorSequenceKeypoint.new(1,Color3.fromRGB(12,12,22))})
 
-local thanh_tren = Instance.new("Frame", khung_chinh)
-thanh_tren.Size = UDim2.new(1, 0, 0, 32)
-thanh_tren.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-thanh_tren.BackgroundTransparency = 0.2
-thanh_tren.BorderSizePixel = 0
-Instance.new("UICorner", thanh_tren).CornerRadius = UDim.new(0, 14)
+local top = Instance.new("Frame",f)
+top.BackgroundColor3 = Color3.fromRGB(26,26,40)
+top.Size = UDim2.new(1,0,0,44)
+Instance.new("UICorner",top).CornerRadius = UDim.new(0,14)
 
-local tieu_de = Instance.new("TextLabel", thanh_tren)
-tieu_de.Size = UDim2.new(0.5, 0, 1, 0)
-tieu_de.Position = UDim2.new(0.05, 0, 0, 0)
-tieu_de.Text = "BAY NGAM + ZONE"
-tieu_de.TextColor3 = Color3.new(1, 1, 1)
-tieu_de.Font = Enum.Font.GothamBold
-tieu_de.TextSize = 11
-tieu_de.BackgroundTransparency = 1
-tieu_de.TextXAlignment = Enum.TextXAlignment.Left
+local title = Instance.new("TextLabel",top)
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0,15,0,0)
+title.Size = UDim2.new(0,250,1,0)
+title.Font = Enum.Font.GothamBold
+title.Text = "SPAWN CỐ ĐỊNH + AUTO FIX"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 13
+title.TextXAlignment = Enum.TextXAlignment.Left
 
-local nut_dong = Instance.new("TextButton", thanh_tren)
-nut_dong.Size = UDim2.new(0, 22, 0, 22)
-nut_dong.Position = UDim2.new(1, -28, 0, 5)
-nut_dong.Text = "x"
-nut_dong.TextColor3 = Color3.new(1, 1, 1)
-nut_dong.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-nut_dong.Font = Enum.Font.GothamBold
-nut_dong.TextSize = 11
-Instance.new("UICorner", nut_dong).CornerRadius = UDim.new(0, 4)
+local minBtn = Instance.new("TextButton",top)
+minBtn.BackgroundColor3 = Color3.fromRGB(255,160,10)
+minBtn.Position = UDim2.new(1,-74,0.5,-12)
+minBtn.Size = UDim2.new(0,26,0,24)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.Text = "─"
+minBtn.TextColor3 = Color3.new(0,0,0)
+minBtn.TextSize = 15
+Instance.new("UICorner",minBtn).CornerRadius = UDim.new(0,7)
 
-local nut_thu_nho = Instance.new("TextButton", thanh_tren)
-nut_thu_nho.Size = UDim2.new(0, 22, 0, 22)
-nut_thu_nho.Position = UDim2.new(1, -54, 0, 5)
-nut_thu_nho.Text = "-"
-nut_thu_nho.TextColor3 = Color3.new(1, 1, 1)
-nut_thu_nho.BackgroundColor3 = Color3.fromRGB(200, 150, 30)
-nut_thu_nho.Font = Enum.Font.GothamBold
-nut_thu_nho.TextSize = 11
-Instance.new("UICorner", nut_thu_nho).CornerRadius = UDim.new(0, 4)
+local closeBtn = Instance.new("TextButton",top)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255,40,40)
+closeBtn.Position = UDim2.new(1,-40,0.5,-12)
+closeBtn.Size = UDim2.new(0,26,0,24)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.TextSize = 15
+Instance.new("UICorner",closeBtn).CornerRadius = UDim.new(0,7)
 
-local than_khung = Instance.new("Frame", khung_chinh)
-than_khung.Size = UDim2.new(1, 0, 1, -32)
-than_khung.Position = UDim2.new(0, 0, 0, 32)
-than_khung.BackgroundTransparency = 1
+local status = Instance.new("TextLabel",f)
+status.BackgroundTransparency = 1
+status.Position = UDim2.new(0,18,0,56)
+status.Size = UDim2.new(1,-36,0,30)
+status.Font = Enum.Font.Gotham
+status.Text = "Toạ độ: 563.2, 3.9, -20.8 | Auto fix khi chết"
+status.TextColor3 = Color3.fromRGB(160,160,180)
+status.TextSize = 11
+status.TextXAlignment = Enum.TextXAlignment.Left
 
-local nhan_toa_do = Instance.new("TextLabel", than_khung)
-nhan_toa_do.Size = UDim2.new(1, -20, 0, 36)
-nhan_toa_do.Position = UDim2.new(0, 10, 0, 4)
-nhan_toa_do.Text = "Toa do: " .. toa_do_goc.X .. ", " .. toa_do_goc.Y .. ", " .. toa_do_goc.Z
-nhan_toa_do.TextColor3 = Color3.new(1, 1, 1)
-nhan_toa_do.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-nhan_toa_do.Font = Enum.Font.Gotham
-nhan_toa_do.TextSize = 10
-nhan_toa_do.TextWrapped = true
-Instance.new("UICorner", nhan_toa_do).CornerRadius = UDim.new(0, 4)
+local moveBtn = Instance.new("TextButton",f)
+moveBtn.BackgroundColor3 = Color3.fromRGB(50,140,60)
+moveBtn.Position = UDim2.new(0,20,0,100)
+moveBtn.Size = UDim2.new(0,210,0,46)
+moveBtn.Font = Enum.Font.GothamBold
+moveBtn.Text = "DỊCH SPAWN NGAY"
+moveBtn.TextColor3 = Color3.new(1,1,1)
+moveBtn.TextSize = 13
+Instance.new("UICorner",moveBtn).CornerRadius = UDim.new(0,11)
 
-local nhan_trang_thai = Instance.new("TextLabel", than_khung)
-nhan_trang_thai.Size = UDim2.new(1, -20, 0, 22)
-nhan_trang_thai.Position = UDim2.new(0, 10, 0, 44)
-nhan_trang_thai.Text = "Trang thai: DUNG"
-nhan_trang_thai.TextColor3 = Color3.new(1, 0.8, 0)
-nhan_trang_thai.BackgroundTransparency = 1
-nhan_trang_thai.Font = Enum.Font.GothamBold
-nhan_trang_thai.TextSize = 10
+local copyBtn = Instance.new("TextButton",f)
+copyBtn.BackgroundColor3 = Color3.fromRGB(45,115,205)
+copyBtn.Position = UDim2.new(0,245,0,100)
+copyBtn.Size = UDim2.new(0,105,0,46)
+copyBtn.Font = Enum.Font.GothamBold
+copyBtn.Text = "COPY TOẠ ĐỘ"
+copyBtn.TextColor3 = Color3.new(1,1,1)
+copyBtn.TextSize = 11
+Instance.new("UICorner",copyBtn).CornerRadius = UDim.new(0,11)
 
-local nhan_xuyen = Instance.new("TextLabel", than_khung)
-nhan_xuyen.Size = UDim2.new(1, -20, 0, 18)
-nhan_xuyen.Position = UDim2.new(0, 10, 0, 68)
-nhan_xuyen.Text = "Xuyen: TAT | Vung: " .. ban_kinh_vung .. " studs"
-nhan_xuyen.TextColor3 = Color3.new(1, 0.3, 0.3)
-nhan_xuyen.BackgroundTransparency = 1
-nhan_xuyen.Font = Enum.Font.Gotham
-nhan_xuyen.TextSize = 9
+local thuNho = false
 
-local nut_chep = Instance.new("TextButton", than_khung)
-nut_chep.Size = UDim2.new(1, -20, 0, 26)
-nut_chep.Position = UDim2.new(0, 10, 0, 92)
-nut_chep.Text = "CHEP TOA DO"
-nut_chep.TextColor3 = Color3.new(1, 1, 1)
-nut_chep.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-nut_chep.Font = Enum.Font.GothamBold
-nut_chep.TextSize = 11
-Instance.new("UICorner", nut_chep).CornerRadius = UDim.new(0, 4)
-
-local nut_bat_dau = Instance.new("TextButton", than_khung)
-nut_bat_dau.Size = UDim2.new(1, -20, 0, 26)
-nut_bat_dau.Position = UDim2.new(0, 10, 0, 124)
-nut_bat_dau.Text = "BAT DAU"
-nut_bat_dau.TextColor3 = Color3.new(1, 1, 1)
-nut_bat_dau.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-nut_bat_dau.Font = Enum.Font.GothamBold
-nut_bat_dau.TextSize = 11
-Instance.new("UICorner", nut_bat_dau).CornerRadius = UDim.new(0, 4)
-
-nut_thu_nho.MouseButton1Click:Connect(function()
-    than_khung.Visible = not than_khung.Visible
-    khung_chinh.Size = than_khung.Visible and UDim2.new(0, 200, 0, 160) or UDim2.new(0, 200, 0, 32)
-end)
-
-nut_dong.MouseButton1Click:Connect(function()
-    dang_hoat_dong = false
-    dang_bay = false
-    dang_di_ve = false
-    tat_xuyen()
-    local _, h = lay_nhan_vat()
-    if h then
-        h.WalkSpeed = 16
-        h.JumpPower = 50
-        h.AutoRotate = true
-    end
-    gui:Destroy()
-end)
-
-nut_chep.MouseButton1Click:Connect(function()
-    pcall(function() setclipboard(toa_do_goc.X .. ", " .. toa_do_goc.Y .. ", " .. toa_do_goc.Z) end)
-end)
-
-nut_bat_dau.MouseButton1Click:Connect(function()
-    if not dang_hoat_dong then
-        dang_hoat_dong = true
-        nut_bat_dau.Text = "DUNG"
-        nut_bat_dau.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        nhan_trang_thai.Text = "Trang thai: BAY NGAM..."
-        nhan_trang_thai.TextColor3 = Color3.new(1, 1, 0)
-        nhan_xuyen.Text = "Xuyen: BAT | Vung: " .. ban_kinh_vung .. " studs"
-        nhan_xuyen.TextColor3 = Color3.new(0, 1, 0)
-        task.spawn(function()
-            bay_toi_vi_tri()
-            if dang_hoat_dong then
-                nhan_trang_thai.Text = "Trang thai: DA DEN - DUNG IM"
-                nhan_trang_thai.TextColor3 = Color3.new(0, 1, 0)
-                nhan_xuyen.Text = "Xuyen: TAT | Vung: " .. ban_kinh_vung .. " studs"
-                nhan_xuyen.TextColor3 = Color3.new(1, 0.3, 0.3)
-            end
-        end)
+moveBtn.MouseButton1Click:Connect(function()
+    local c = dichSpawn()
+    if c > 0 then
+        status.Text = "✅ Đã dịch "..c.." Spawn + auto fix khi chết!"
     else
-        dang_hoat_dong = false
-        dang_bay = false
-        dang_di_ve = false
-        tat_xuyen()
-        nut_bat_dau.Text = "BAT DAU"
-        nut_bat_dau.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        nhan_trang_thai.Text = "Trang thai: DUNG"
-        nhan_trang_thai.TextColor3 = Color3.new(1, 0.8, 0)
-        nhan_xuyen.Text = "Xuyen: TAT | Vung: " .. ban_kinh_vung .. " studs"
-        nhan_xuyen.TextColor3 = Color3.new(1, 0.3, 0.3)
-        local _, h, r = lay_nhan_vat()
-        if h and r then
-            h.WalkSpeed = 16
-            h.JumpPower = 50
-            h.AutoRotate = true
-            h:MoveTo(r.Position)
-        end
+        status.Text = "❌ Không tìm thấy SpawnLocation!"
+    end
+    task.wait(3)
+    status.Text = "Toạ độ: 563.2, 3.9, -20.8 | Auto fix khi chết"
+end)
+
+copyBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard("563.2, 3.9, -20.8") end)
+    status.Text = "✅ Đã copy toạ độ!"
+    task.wait(2)
+    status.Text = "Toạ độ: 563.2, 3.9, -20.8 | Auto fix khi chết"
+end)
+
+minBtn.MouseButton1Click:Connect(function()
+    thuNho = not thuNho
+    if thuNho then
+        f.Size = UDim2.new(0,370,0,44)
+        moveBtn.Visible = false
+        copyBtn.Visible = false
+        status.Visible = false
+    else
+        f.Size = UDim2.new(0,370,0,200)
+        moveBtn.Visible = true
+        copyBtn.Visible = true
+        status.Visible = true
     end
 end)
 
-nguoi_choi.CharacterAdded:Connect(function()
-    if dang_hoat_dong then
-        nhan_trang_thai.Text = "Trang thai: RESPAWN - DOI 1S..."
-        nhan_trang_thai.TextColor3 = Color3.new(1, 1, 0)
-        nhan_xuyen.Text = "Xuyen: CHO | Vung: " .. ban_kinh_vung .. " studs"
-        nhan_xuyen.TextColor3 = Color3.new(1, 1, 0)
-        task.wait(1)
-        task.spawn(function()
-            bay_toi_vi_tri()
-            if dang_hoat_dong then
-                nhan_trang_thai.Text = "Trang thai: DA DEN - DUNG IM"
-                nhan_trang_thai.TextColor3 = Color3.new(0, 1, 0)
-                nhan_xuyen.Text = "Xuyen: TAT | Vung: " .. ban_kinh_vung .. " studs"
-                nhan_xuyen.TextColor3 = Color3.new(1, 0.3, 0.3)
-            end
-        end)
-    end
-end)
-
-local dang_keo, du_lieu_keo, diem_bat_dau, vi_tri_bat_dau = false, nil, nil, nil
-khung_chinh.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dang_keo = true
-        diem_bat_dau = input.Position
-        vi_tri_bat_dau = khung_chinh.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dang_keo = false end
-        end)
-    end
-end)
-khung_chinh.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-        du_lieu_keo = input
-    end
-end)
-UIS.InputChanged:Connect(function(input)
-    if input == du_lieu_keo and dang_keo then
-        local delta = input.Position - diem_bat_dau
-        khung_chinh.Position = UDim2.new(vi_tri_bat_dau.X.Scale, vi_tri_bat_dau.X.Offset + delta.X, vi_tri_bat_dau.Y.Scale, vi_tri_bat_dau.Y.Offset + delta.Y)
-    end
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
 end)
