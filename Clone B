@@ -1,4 +1,4 @@
---code số 40: BAY NGẦM DƯỚI ĐẤT NHANH + TRỒI LÊN ĐÚNG TỌA ĐỘ + GIỮ ĐỨNG + TỰ ĐI BỘ VỀ NẾU RA ZONE + AUTO RESPAWN (DELTAX MOBILE)
+--code số 41: FLY UNDERGROUND + ZONE 50 STUDS - CHUẨN CODE 30 (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -10,12 +10,12 @@ pcall(function() if PlayerGui:FindFirstChild("FLY_GUI") then PlayerGui.FLY_GUI:D
 local FIX = Vector3.new(563.2, 3.9, -20.8)
 local FIX_STAND = FIX + Vector3.new(3, 0, 0)
 local UNDERGROUND_Y = FIX_STAND.Y - 10
-local FLY_SPEED = 300
-local STUCK_TIMEOUT = 5
+local FLY_SPEED = 200
+local STUCK_TIMEOUT = 10
 local ZONE_RADIUS = 50
-local WALK_SPEED = 20
+local MAX_SPEED = 18
 
-local act, En = false, false
+local act, En, noc, Y = false, false, false, nil
 local noclipConnection, standConnection = nil, nil
 local isWalkingBack = false
 
@@ -27,9 +27,10 @@ end
 
 local function enableNoclip()
     if noclipConnection then noclipConnection:Disconnect() end
+    noc = true
     noclipConnection = RunService.Stepped:Connect(function()
         local c = player.Character
-        if c then
+        if c and noc then
             for _, v in pairs(c:GetDescendants()) do
                 if v:IsA("BasePart") then v.CanCollide = false end
             end
@@ -38,10 +39,24 @@ local function enableNoclip()
 end
 
 local function disableNoclip()
+    noc = false
     if noclipConnection then
         noclipConnection:Disconnect()
         noclipConnection = nil
     end
+end
+
+local function enableFreefall(h)
+    h.PlatformStand = true
+    workspace.Gravity = 0
+end
+
+local function disableFreefall(h, r)
+    h.PlatformStand = false
+    h.AutoRotate = true
+    workspace.Gravity = 196.2
+    if r then r.Velocity = Vector3.zero end
+    h.WalkSpeed = 0
 end
 
 local function enableStandLock()
@@ -49,12 +64,8 @@ local function enableStandLock()
     standConnection = RunService.Stepped:Connect(function()
         local _, _, r = getChar()
         if r and r.Parent and not En and not isWalkingBack then
-            if r.Position.Y < FIX_STAND.Y - 0.1 then
-                r.Velocity = Vector3.new(r.Velocity.X, 2, r.Velocity.Z)
-            elseif r.Position.Y > FIX_STAND.Y + 0.1 then
-                r.Velocity = Vector3.new(r.Velocity.X, -2, r.Velocity.Z)
-            else
-                r.Velocity = Vector3.new(r.Velocity.X, 0, r.Velocity.Z)
+            if math.abs(r.Position.Y - FIX_STAND.Y) > 0.1 then
+                r.Velocity = Vector3.new(r.Velocity.X, (FIX_STAND.Y - r.Position.Y) * 20, r.Velocity.Z)
             end
         end
     end)
@@ -70,44 +81,48 @@ end
 local function walkBackToZone()
     if not act or isWalkingBack then return end
     isWalkingBack = true
-    local c, h, r = getChar()
+    local _, h, r = getChar()
     if not h or not r then isWalkingBack = false return end
     disableStandLock()
-    h.WalkSpeed = WALK_SPEED
+    h.WalkSpeed = MAX_SPEED
     while act and isWalkingBack and r and r.Parent do
         local dist = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)).Magnitude
         if dist <= ZONE_RADIUS then break end
         local dir = (Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Unit
-        h:MoveTo(Vector3.new(r.Position.X + dir.X * 10, FIX_STAND.Y, r.Position.Z + dir.Z * 10))
-        r.Velocity = Vector3.new(dir.X * WALK_SPEED, r.Velocity.Y, dir.Z * WALK_SPEED)
+        h:MoveTo(FIX_STAND)
         task.wait(0.05)
     end
     isWalkingBack = false
     h.WalkSpeed = 0
     h:MoveTo(FIX_STAND)
-    task.wait(0.3)
+    task.wait(0.2)
     enableStandLock()
 end
 
-local function flyUnderground()
+local function flyToFix()
     if not act then return end
     En = true
     local c, h, r = getChar()
     if not r or not h then return end
     enableNoclip()
-    h.PlatformStand = true
-    workspace.Gravity = 0
-    r.Velocity = Vector3.new(0, -FLY_SPEED, 0)
-    task.wait(0.05)
+    Y = UNDERGROUND_Y
+    enableFreefall(h)
+    r.CFrame = CFrame.new(r.Position.X, FIX_STAND.Y + 8, r.Position.Z)
+    r.Velocity = Vector3.new(0, -300, 0)
+    task.wait(0.1)
+    r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
     r.Velocity = Vector3.zero
     local lastPos = r.Position
     local stuckTime = 0
     while act and En and r and r.Parent do
         local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
         local flatTgt = Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)
-        if (flatCur - flatTgt).Magnitude <= 3 then break end
+        if (flatCur - flatTgt).Magnitude <= 5 then break end
         local dir = (flatTgt - flatCur).Unit
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, (UNDERGROUND_Y - r.Position.Y) * 20, dir.Z * FLY_SPEED)
+        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
+        if math.abs(r.Position.Y - Y) > 0.5 then
+            r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
+        end
         h.AutoRotate = false
         if dir.Magnitude > 0.01 then
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
@@ -124,28 +139,24 @@ local function flyUnderground()
     En = false
     r.Velocity = Vector3.zero
     if r and r.Parent then
-        r.Velocity = Vector3.new(0, FLY_SPEED, 0)
-        while act and r and r.Parent and r.Position.Y < FIX_STAND.Y - 0.5 do
+        disableFreefall(h, r)
+        task.wait(0.1)
+        local startY = r.Position.Y
+        local targetY = FIX_STAND.Y
+        for t = 0, 1, 0.05 do
+            if not act or not r or not r.Parent then break end
+            local newY = startY + (targetY - startY) * t
+            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
+            r.Velocity = Vector3.zero
             task.wait(0.02)
         end
+        r.CFrame = CFrame.new(FIX_STAND.X, FIX_STAND.Y, FIX_STAND.Z)
         r.Velocity = Vector3.zero
-        local flatCur2 = Vector3.new(r.Position.X, 0, r.Position.Z)
-        local flatTgt2 = Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)
-        if (flatCur2 - flatTgt2).Magnitude > 0.5 then
-            local dir2 = (flatTgt2 - flatCur2).Unit
-            r.Velocity = Vector3.new(dir2.X * FLY_SPEED, 0, dir2.Z * FLY_SPEED)
-            while act and r and r.Parent and (Vector3.new(r.Position.X, 0, r.Position.Z) - flatTgt2).Magnitude > 0.5 do
-                task.wait(0.02)
-            end
-            r.Velocity = Vector3.zero
-        end
-        task.wait(0.1)
+        task.wait(0.2)
     end
-    h.PlatformStand = false
-    h.AutoRotate = true
-    workspace.Gravity = 196.2
     disableNoclip()
     h.WalkSpeed = 0
+    Y = nil
     enableStandLock()
 end
 
@@ -296,15 +307,7 @@ flyBtn.MouseButton1Click:Connect(function()
         statusLabel.TextColor3 = Color3.new(1, 1, 0)
         noclipLabel.Text = "Noclip: BAT | Zone: " .. ZONE_RADIUS .. " studs"
         noclipLabel.TextColor3 = Color3.new(0, 1, 0)
-        task.spawn(function()
-            flyUnderground()
-            if act then
-                statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
-                statusLabel.TextColor3 = Color3.new(0, 1, 0)
-                noclipLabel.Text = "Noclip: TAT | Zone: " .. ZONE_RADIUS .. " studs"
-                noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
-            end
-        end)
+        task.spawn(function() flyToFix() end)
     else
         act = false
         En = false
@@ -332,15 +335,7 @@ player.CharacterAdded:Connect(function()
         noclipLabel.Text = "Noclip: BAT | Zone: " .. ZONE_RADIUS .. " studs"
         noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.wait(1)
-        task.spawn(function()
-            flyUnderground()
-            if act then
-                statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
-                statusLabel.TextColor3 = Color3.new(0, 1, 0)
-                noclipLabel.Text = "Noclip: TAT | Zone: " .. ZONE_RADIUS .. " studs"
-                noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
-            end
-        end)
+        task.spawn(function() flyToFix() end)
     end
 end)
 
