@@ -1,17 +1,17 @@
---code số 30: CLONE A - LUÔN HIT + KHI MÁU < 3 THÌ TIẾN SÁT STOMP
+--code so 54: CLONE A - LUON HIT + STOMP - KHONG BAY - KHONG ZONE - TOC DO 20 (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local player = Players.LocalPlayer
-local PlayerGui = player:FindFirstChild("PlayerGui") or player:WaitForChild("PlayerGui")
+local nguoi_choi = Players.LocalPlayer
+local gui_nguoi_choi = nguoi_choi:FindFirstChild("PlayerGui") or nguoi_choi:WaitForChild("PlayerGui")
 
-pcall(function() if PlayerGui:FindFirstChild("A_GUI") then PlayerGui.A_GUI:Destroy() end end)
+pcall(function() if gui_nguoi_choi:FindFirstChild("A_GUI") then gui_nguoi_choi.A_GUI:Destroy() end end)
 
 task.spawn(function()
     while true do
         pcall(function()
-            for _, v in pairs(PlayerGui:GetDescendants()) do
+            for _, v in pairs(gui_nguoi_choi:GetDescendants()) do
                 if v:IsA("Frame") then
                     local n = v.Name:lower()
                     if n:find("notif") or n:find("error") or n:find("alert") or n:find("message") then
@@ -25,29 +25,19 @@ task.spawn(function()
     end
 end)
 
-local FIX = Vector3.new(563.2, 3.9, -20.8)
-local FIX_STAND = Vector3.new(FIX.X + 3, FIX.Y, FIX.Z)
-local RAD = 50
-local FLY_SPEED = 200
-local HEAD_OFFSET = 8
-local MAX_SPEED = 18
-local STUCK_TIMEOUT = 10
-local HIT_RANGE = 4
-local STOMP_RANGE = 1.5
-local HP_THRESHOLD = 3
+local toc_do_chay = 20
+local tam_danh = 4
+local tam_stomp = 1.5
+local nguong_mau = 3
 
-local act = false
-local stb = false
-local atk = false
-local noc = false
-local Y = nil
-local En = false
-local Tar = nil
-local isMoving = false
-local moveTask = nil
+local dang_hoat_dong = false
+local dang_danh = false
+local muc_tieu = nil
+local dang_di_chuyen = false
+local tac_vu_di_chuyen = nil
 
-local function getMobileStompButton()
-    for _, v in ipairs(PlayerGui:GetDescendants()) do
+local function lay_nut_stomp()
+    for _, v in ipairs(gui_nguoi_choi:GetDescendants()) do
         if v.Name == "Stomp" and v.Parent and v.Parent.Name == "MobileButtons" then
             if v:IsA("TextButton") or v:IsA("ImageButton") then
                 return v
@@ -57,18 +47,18 @@ local function getMobileStompButton()
     return nil
 end
 
-local function clickButton(btn)
-    if not btn then return false end
+local function bam_nut(nut)
+    if not nut then return false end
     pcall(function()
-        btn:FireEvent("MouseButton1Click")
-        btn:Activate()
-        local pos = btn.AbsolutePosition
-        local size = btn.AbsoluteSize
+        nut:FireEvent("MouseButton1Click")
+        nut:Activate()
+        local pos = nut.AbsolutePosition
+        local size = nut.AbsoluteSize
         if pos.X > 0 and pos.Y > 0 then
             local x = pos.X + size.X / 2
             local y = pos.Y + size.Y / 2
-            if btn.InputBegan then
-                btn.InputBegan:Fire({
+            if nut.InputBegan then
+                nut.InputBegan:Fire({
                     UserInputType = Enum.UserInputType.MouseButton1,
                     Position = Vector2.new(x, y)
                 })
@@ -78,7 +68,7 @@ local function clickButton(btn)
     return true
 end
 
-local function pressKey(key)
+local function bam_phim(key)
     pcall(function()
         VirtualInputManager:SendKeyEvent(true, key, false, game)
         task.wait(0.01)
@@ -86,14 +76,14 @@ local function pressKey(key)
     end)
 end
 
-local function get()
-    local c = player.Character
+local function lay_nhan_vat()
+    local c = nguoi_choi.Character
     if not c then return nil, nil, nil end
     return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
 end
 
-local function equipFist()
-    local c = player.Character
+local function trang_bi_nam_dam()
+    local c = nguoi_choi.Character
     if not c then return false end
     local h = c:FindFirstChild("Humanoid")
     if not h then return false end
@@ -102,7 +92,7 @@ local function equipFist()
             return true
         end
     end
-    local bp = player:FindFirstChild("Backpack")
+    local bp = nguoi_choi:FindFirstChild("Backpack")
     if bp then
         local fist = bp:FindFirstChild("Fist")
         if fist then
@@ -114,9 +104,9 @@ local function equipFist()
     return false
 end
 
-local function doHit()
-    equipFist()
-    local c = player.Character
+local function danh()
+    trang_bi_nam_dam()
+    local c = nguoi_choi.Character
     if c then
         local fist = c:FindFirstChild("Fist")
         if fist and fist:IsA("Tool") then
@@ -125,388 +115,281 @@ local function doHit()
     end
 end
 
-local function doGrab()
-    pressKey(Enum.KeyCode.G)
+local function tom()
+    bam_phim(Enum.KeyCode.G)
 end
 
-local function doStomp()
-    pressKey(Enum.KeyCode.E)
-    local btn = getMobileStompButton()
-    if btn then clickButton(btn) end
-    doHit()
+local function stomp()
+    bam_phim(Enum.KeyCode.E)
+    local nut = lay_nut_stomp()
+    if nut then bam_nut(nut) end
+    danh()
 end
 
-local function enableNoclip(c)
-    noc = true
-    if not c then return end
-    for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = false end
+local function dung_di_chuyen()
+    dang_di_chuyen = false
+    if tac_vu_di_chuyen then
+        task.cancel(tac_vu_di_chuyen)
+        tac_vu_di_chuyen = nil
     end
 end
 
-local function disableNoclip(c)
-    noc = false
-    if not c then return end
-    for _, v in pairs(c:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanCollide = true end
-    end
-end
-
-local function enableFreefall(h)
-    h.PlatformStand = true
-    workspace.Gravity = 0
-end
-
-local function disableFreefall(h, r)
-    h.PlatformStand = false
-    h.AutoRotate = true
-    workspace.Gravity = 196.2
-    if r then r.Velocity = Vector3.zero end
-    h.WalkSpeed = MAX_SPEED
-end
-
-local function flyToFix()
-    if not act then return end
-    stb = false
-    En = true
-    local c, h, r = get()
-    if not r or not h then return end
-    local tg = FIX_STAND
-    Y = tg.Y - HEAD_OFFSET
-    enableFreefall(h)
-    enableNoclip(c)
-    r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-    r.Velocity = Vector3.zero
-    local lastPos = r.Position
-    local stuckTime = 0
-    while act and En and r and r.Parent do
-        local flatCur = Vector3.new(r.Position.X, 0, r.Position.Z)
-        local flatTgt = Vector3.new(tg.X, 0, tg.Z)
-        if (flatCur - flatTgt).Magnitude <= 5 then break end
-        local dir = (flatTgt - flatCur).Unit
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
-        if math.abs(r.Position.Y - Y) > 0.5 then
-            r.CFrame = CFrame.new(r.Position.X, Y, r.Position.Z)
-        end
-        h.AutoRotate = false
-        if dir.Magnitude > 0.01 then
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
-        end
-        if (r.Position - lastPos).Magnitude < 0.5 then
-            stuckTime = stuckTime + 0.1
-            if stuckTime >= STUCK_TIMEOUT then break end
-        else
-            stuckTime = 0
-        end
-        lastPos = r.Position
-        task.wait()
-    end
-    En = false
-    r.Velocity = Vector3.zero
-    if r and r.Parent then
-        disableFreefall(h, r)
-        task.wait(0.1)
-        local startY = r.Position.Y
-        local targetY = tg.Y
-        for t = 0, 1, 0.05 do
-            if not act or not r or not r.Parent then break end
-            local newY = startY + (targetY - startY) * t
-            r.CFrame = CFrame.new(r.Position.X, newY, r.Position.Z)
-            r.Velocity = Vector3.zero
-            task.wait(0.02)
-        end
-        r.CFrame = CFrame.new(tg.X, tg.Y, tg.Z)
-        r.Velocity = Vector3.zero
-        task.wait(0.2)
-    end
-    disableNoclip(c)
-    h.WalkSpeed = MAX_SPEED
-    Y = nil
-    stb = true
-end
-
-local function moveToTarget(tr)
-    if moveTask then task.cancel(moveTask) end
-    isMoving = true
-    moveTask = task.spawn(function()
-        local _, h, r = get()
-        if not h or not r then isMoving = false return end
-        h.WalkSpeed = MAX_SPEED
-        while act and stb and isMoving and r and r.Parent and tr and tr.Parent do
-            if not Tar or not Tar.Character then break end
-            local tr2 = Tar.Character:FindFirstChild("HumanoidRootPart")
-            if not tr2 then break end
-            if (FIX - tr2.Position).Magnitude > RAD then break end
-            local dist = (r.Position - tr2.Position).Magnitude
-            if dist <= HIT_RANGE then break end
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr2.Position.X, r.Position.Y, tr2.Position.Z))
-            h:MoveTo(tr2.Position)
+local function di_toi_muc_tieu(dich)
+    if tac_vu_di_chuyen then task.cancel(tac_vu_di_chuyen) end
+    dang_di_chuyen = true
+    tac_vu_di_chuyen = task.spawn(function()
+        local _, h, r = lay_nhan_vat()
+        if not h or not r then dang_di_chuyen = false return end
+        h.WalkSpeed = toc_do_chay
+        while dang_hoat_dong and dang_di_chuyen and r and r.Parent and dich and dich.Parent do
+            if not muc_tieu or not muc_tieu.Character then break end
+            local dich2 = muc_tieu.Character:FindFirstChild("HumanoidRootPart")
+            if not dich2 then break end
+            local khoang_cach = (r.Position - dich2.Position).Magnitude
+            if khoang_cach <= tam_danh then break end
+            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich2.Position.X, r.Position.Y, dich2.Position.Z))
+            h:MoveTo(dich2.Position)
             task.wait(0.05)
         end
-        isMoving = false
-        moveTask = nil
+        dang_di_chuyen = false
+        tac_vu_di_chuyen = nil
     end)
 end
 
-local function moveToStompRange(tr)
-    if moveTask then task.cancel(moveTask) end
-    isMoving = true
-    moveTask = task.spawn(function()
-        local _, h, r = get()
-        if not h or not r then isMoving = false return end
-        h.WalkSpeed = MAX_SPEED
-        while act and stb and isMoving and r and r.Parent and tr and tr.Parent do
-            if not Tar or not Tar.Character then break end
-            local tr2 = Tar.Character:FindFirstChild("HumanoidRootPart")
-            if not tr2 then break end
-            if (FIX - tr2.Position).Magnitude > RAD then break end
-            local dist = (r.Position - tr2.Position).Magnitude
-            if dist <= STOMP_RANGE then break end
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr2.Position.X, r.Position.Y, tr2.Position.Z))
-            h:MoveTo(tr2.Position)
+local function di_toi_tam_stomp(dich)
+    if tac_vu_di_chuyen then task.cancel(tac_vu_di_chuyen) end
+    dang_di_chuyen = true
+    tac_vu_di_chuyen = task.spawn(function()
+        local _, h, r = lay_nhan_vat()
+        if not h or not r then dang_di_chuyen = false return end
+        h.WalkSpeed = toc_do_chay
+        while dang_hoat_dong and dang_di_chuyen and r and r.Parent and dich and dich.Parent do
+            if not muc_tieu or not muc_tieu.Character then break end
+            local dich2 = muc_tieu.Character:FindFirstChild("HumanoidRootPart")
+            if not dich2 then break end
+            local khoang_cach = (r.Position - dich2.Position).Magnitude
+            if khoang_cach <= tam_stomp then break end
+            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich2.Position.X, r.Position.Y, dich2.Position.Z))
+            h:MoveTo(dich2.Position)
             task.wait(0.05)
         end
-        isMoving = false
-        moveTask = nil
+        dang_di_chuyen = false
+        tac_vu_di_chuyen = nil
     end)
-end
-
-local function stopMoving()
-    isMoving = false
-    if moveTask then
-        task.cancel(moveTask)
-        moveTask = nil
-    end
 end
 
 task.spawn(function()
     while true do
         task.wait(0.03)
         
-        if not act or not stb then
-            stopMoving()
-            atk = false
+        if not dang_hoat_dong then
+            dung_di_chuyen()
+            dang_danh = false
             continue
         end
         
-        if not Tar then
-            stopMoving()
-            atk = false
+        if not muc_tieu then
+            dung_di_chuyen()
+            dang_danh = false
             continue
         end
         
-        local tc = Tar.Character
+        local tc = muc_tieu.Character
         if not tc then
-            stopMoving()
-            atk = false
+            dung_di_chuyen()
+            dang_danh = false
             continue
         end
         
-        local tr = tc:FindFirstChild("HumanoidRootPart")
-        local th = tc:FindFirstChild("Humanoid")
+        local dich = tc:FindFirstChild("HumanoidRootPart")
+        local mau_dich = tc:FindFirstChild("Humanoid")
         
-        if not tr or not th or th.Health <= 0 then
-            stopMoving()
-            atk = false
+        if not dich or not mau_dich or mau_dich.Health <= 0 then
+            dung_di_chuyen()
+            dang_danh = false
             continue
         end
         
-        if (FIX - tr.Position).Magnitude > RAD then
-            stopMoving()
-            atk = false
-            continue
-        end
-        
-        local _, _, r = get()
+        local _, _, r = lay_nhan_vat()
         if not r then
-            atk = false
+            dang_danh = false
             continue
         end
         
-        local dist = (r.Position - tr.Position).Magnitude
+        local khoang_cach = (r.Position - dich.Position).Magnitude
         
-        -- MÁU < 3: TIẾN SÁT 1.5 STUD ĐỂ STOMP + HIT
-        if th.Health < HP_THRESHOLD then
-            if dist > STOMP_RANGE then
-                atk = true
-                if not isMoving then
-                    moveToStompRange(tr)
+        if mau_dich.Health < nguong_mau then
+            if khoang_cach > tam_stomp then
+                dang_danh = true
+                if not dang_di_chuyen then
+                    di_toi_tam_stomp(dich)
                 end
             else
-                stopMoving()
-                atk = true
-                r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr.Position.X, r.Position.Y, tr.Position.Z))
-                equipFist()
-                doStomp()
+                dung_di_chuyen()
+                dang_danh = true
+                r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich.Position.X, r.Position.Y, dich.Position.Z))
+                trang_bi_nam_dam()
+                stomp()
                 task.wait(0.02)
             end
-        -- MÁU >= 3: HIT + GRAB
         else
-            if dist > HIT_RANGE then
-                atk = true
-                if not isMoving then
-                    moveToTarget(tr)
+            if khoang_cach > tam_danh then
+                dang_danh = true
+                if not dang_di_chuyen then
+                    di_toi_muc_tieu(dich)
                 end
             else
-                stopMoving()
-                atk = true
-                r.CFrame = CFrame.lookAt(r.Position, Vector3.new(tr.Position.X, r.Position.Y, tr.Position.Z))
-                equipFist()
-                doHit()
-                doGrab()
+                dung_di_chuyen()
+                dang_danh = true
+                r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich.Position.X, r.Position.Y, dich.Position.Z))
+                trang_bi_nam_dam()
+                danh()
+                tom()
                 task.wait(0.02)
             end
         end
     end
 end)
 
-player.CharacterAdded:Connect(function()
-    if act then
-        stopMoving()
-        task.wait(1)
-        flyToFix()
-    end
+local gui = Instance.new("ScreenGui")
+gui.Name = "A_GUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = gui_nguoi_choi
+
+local khung_chinh = Instance.new("Frame", gui)
+khung_chinh.Size = UDim2.new(0, 220, 0, 240)
+khung_chinh.Position = UDim2.new(0, 20, 0.5, -120)
+khung_chinh.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+khung_chinh.BackgroundTransparency = 0.15
+khung_chinh.BorderSizePixel = 0
+khung_chinh.Active = true
+Instance.new("UICorner", khung_chinh).CornerRadius = UDim.new(0, 14)
+
+local thanh_tren = Instance.new("Frame", khung_chinh)
+thanh_tren.Size = UDim2.new(1, 0, 0, 32)
+thanh_tren.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+thanh_tren.BackgroundTransparency = 0.2
+thanh_tren.BorderSizePixel = 0
+Instance.new("UICorner", thanh_tren).CornerRadius = UDim.new(0, 14)
+
+local tieu_de = Instance.new("TextLabel", thanh_tren)
+tieu_de.Size = UDim2.new(0.5, 0, 1, 0)
+tieu_de.Position = UDim2.new(0.05, 0, 0, 0)
+tieu_de.Text = "CLONE A SYSTEM"
+tieu_de.TextColor3 = Color3.new(1, 1, 1)
+tieu_de.Font = Enum.Font.GothamBold
+tieu_de.TextSize = 12
+tieu_de.BackgroundTransparency = 1
+tieu_de.TextXAlignment = Enum.TextXAlignment.Left
+
+local nut_dong = Instance.new("TextButton", thanh_tren)
+nut_dong.Size = UDim2.new(0, 22, 0, 22)
+nut_dong.Position = UDim2.new(1, -28, 0, 5)
+nut_dong.Text = "x"
+nut_dong.TextColor3 = Color3.new(1, 1, 1)
+nut_dong.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+nut_dong.Font = Enum.Font.GothamBold
+nut_dong.TextSize = 11
+Instance.new("UICorner", nut_dong).CornerRadius = UDim.new(0, 4)
+
+local nut_thu_nho = Instance.new("TextButton", thanh_tren)
+nut_thu_nho.Size = UDim2.new(0, 22, 0, 22)
+nut_thu_nho.Position = UDim2.new(1, -54, 0, 5)
+nut_thu_nho.Text = "-"
+nut_thu_nho.TextColor3 = Color3.new(1, 1, 1)
+nut_thu_nho.BackgroundColor3 = Color3.fromRGB(200, 150, 30)
+nut_thu_nho.Font = Enum.Font.GothamBold
+nut_thu_nho.TextSize = 11
+Instance.new("UICorner", nut_thu_nho).CornerRadius = UDim.new(0, 4)
+
+local than_khung = Instance.new("Frame", khung_chinh)
+than_khung.Size = UDim2.new(1, 0, 1, -32)
+than_khung.Position = UDim2.new(0, 0, 0, 32)
+than_khung.BackgroundTransparency = 1
+
+local nhan_thong_tin = Instance.new("TextLabel", than_khung)
+nhan_thong_tin.Size = UDim2.new(1, 0, 0, 24)
+nhan_thong_tin.Position = UDim2.new(0, 0, 0, 4)
+nhan_thong_tin.Text = "Chon muc tieu..."
+nhan_thong_tin.TextColor3 = Color3.new(1, 1, 1)
+nhan_thong_tin.BackgroundTransparency = 1
+nhan_thong_tin.Font = Enum.Font.GothamBold
+nhan_thong_tin.TextSize = 11
+
+local khung_cuon = Instance.new("ScrollingFrame", than_khung)
+khung_cuon.Size = UDim2.new(1, -20, 0, 110)
+khung_cuon.Position = UDim2.new(0, 10, 0, 32)
+khung_cuon.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+khung_cuon.BorderSizePixel = 0
+khung_cuon.ScrollBarThickness = 4
+khung_cuon.ClipsDescendants = true
+khung_cuon.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+local danh_sach = Instance.new("UIListLayout", khung_cuon)
+danh_sach.Padding = UDim.new(0, 2)
+
+local nut_bat_dau = Instance.new("TextButton", than_khung)
+nut_bat_dau.Size = UDim2.new(0, 134, 0, 32)
+nut_bat_dau.Position = UDim2.new(0, 10, 1, -42)
+nut_bat_dau.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+nut_bat_dau.Text = "BAT DAU"
+nut_bat_dau.TextColor3 = Color3.new(1, 1, 1)
+nut_bat_dau.Font = Enum.Font.GothamBold
+nut_bat_dau.TextSize = 11
+Instance.new("UICorner", nut_bat_dau).CornerRadius = UDim.new(0, 5)
+
+local nut_chep = Instance.new("TextButton", than_khung)
+nut_chep.Size = UDim2.new(0, 56, 0, 32)
+nut_chep.Position = UDim2.new(1, -66, 1, -42)
+nut_chep.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+nut_chep.Text = "CHEP"
+nut_chep.TextColor3 = Color3.new(1, 1, 1)
+nut_chep.Font = Enum.Font.GothamBold
+nut_chep.TextSize = 10
+Instance.new("UICorner", nut_chep).CornerRadius = UDim.new(0, 4)
+
+nut_thu_nho.MouseButton1Click:Connect(function()
+    than_khung.Visible = not than_khung.Visible
+    khung_chinh.Size = than_khung.Visible and UDim2.new(0, 220, 0, 240) or UDim2.new(0, 220, 0, 32)
 end)
 
--- GUI
-local g = Instance.new("ScreenGui")
-g.Name = "A_GUI"
-g.ResetOnSpawn = false
-g.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-g.Parent = PlayerGui
-
-local mf = Instance.new("Frame", g)
-mf.Size = UDim2.new(0, 220, 0, 240)
-mf.Position = UDim2.new(0, 20, 0.5, -120)
-mf.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-mf.BackgroundTransparency = 0.15
-mf.BorderSizePixel = 0
-mf.Active = true
-Instance.new("UICorner", mf).CornerRadius = UDim.new(0, 14)
-
-local head = Instance.new("Frame", mf)
-head.Size = UDim2.new(1, 0, 0, 32)
-head.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-head.BackgroundTransparency = 0.2
-head.BorderSizePixel = 0
-Instance.new("UICorner", head).CornerRadius = UDim.new(0, 14)
-
-local title = Instance.new("TextLabel", head)
-title.Size = UDim2.new(0.5, 0, 1, 0)
-title.Position = UDim2.new(0.05, 0, 0, 0)
-title.Text = "CLONE A SYSTEM"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 12
-title.BackgroundTransparency = 1
-title.TextXAlignment = Enum.TextXAlignment.Left
-
-local cls = Instance.new("TextButton", head)
-cls.Size = UDim2.new(0, 22, 0, 22)
-cls.Position = UDim2.new(1, -28, 0, 5)
-cls.Text = "✕"
-cls.TextColor3 = Color3.new(1, 1, 1)
-cls.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
-cls.Font = Enum.Font.GothamBold
-cls.TextSize = 11
-Instance.new("UICorner", cls).CornerRadius = UDim.new(0, 4)
-
-local min = Instance.new("TextButton", head)
-min.Size = UDim2.new(0, 22, 0, 22)
-min.Position = UDim2.new(1, -54, 0, 5)
-min.Text = "─"
-min.TextColor3 = Color3.new(1, 1, 1)
-min.BackgroundColor3 = Color3.fromRGB(200, 150, 30)
-min.Font = Enum.Font.GothamBold
-min.TextSize = 11
-Instance.new("UICorner", min).CornerRadius = UDim.new(0, 4)
-
-local body = Instance.new("Frame", mf)
-body.Size = UDim2.new(1, 0, 1, -32)
-body.Position = UDim2.new(0, 0, 0, 32)
-body.BackgroundTransparency = 1
-
-local lbl = Instance.new("TextLabel", body)
-lbl.Size = UDim2.new(1, 0, 0, 24)
-lbl.Position = UDim2.new(0, 0, 0, 4)
-lbl.Text = "🔍 Chọn mục tiêu..."
-lbl.TextColor3 = Color3.new(1, 1, 1)
-lbl.BackgroundTransparency = 1
-lbl.Font = Enum.Font.GothamBold
-lbl.TextSize = 11
-
-local sf = Instance.new("ScrollingFrame", body)
-sf.Size = UDim2.new(1, -20, 0, 110)
-sf.Position = UDim2.new(0, 10, 0, 32)
-sf.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-sf.BorderSizePixel = 0
-sf.ScrollBarThickness = 4
-sf.ClipsDescendants = true
-sf.CanvasSize = UDim2.new(0, 0, 0, 0)
-
-local ll = Instance.new("UIListLayout", sf)
-ll.Padding = UDim.new(0, 2)
-
-local btn = Instance.new("TextButton", body)
-btn.Size = UDim2.new(0, 134, 0, 32)
-btn.Position = UDim2.new(0, 10, 1, -42)
-btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-btn.Text = "▶ START SYSTEM"
-btn.TextColor3 = Color3.new(1, 1, 1)
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 11
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-
-local cpy = Instance.new("TextButton", body)
-cpy.Size = UDim2.new(0, 56, 0, 32)
-cpy.Position = UDim2.new(1, -66, 1, -42)
-cpy.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-cpy.Text = "📋 COPY"
-cpy.TextColor3 = Color3.new(1, 1, 1)
-cpy.Font = Enum.Font.GothamBold
-cpy.TextSize = 10
-Instance.new("UICorner", cpy).CornerRadius = UDim.new(0, 4)
-
-min.MouseButton1Click:Connect(function()
-    body.Visible = not body.Visible
-    mf.Size = body.Visible and UDim2.new(0, 220, 0, 240) or UDim2.new(0, 220, 0, 32)
+nut_dong.MouseButton1Click:Connect(function()
+    dang_hoat_dong = false
+    dang_danh = false
+    dung_di_chuyen()
+    gui:Destroy()
 end)
 
-cls.MouseButton1Click:Connect(function()
-    act, stb, En, atk = false, false, false, false
-    stopMoving()
-    g:Destroy()
+nut_chep.MouseButton1Click:Connect(function()
+    if muc_tieu then pcall(function() setclipboard(muc_tieu.Name) end) end
 end)
 
-cpy.MouseButton1Click:Connect(function()
-    if Tar then pcall(function() setclipboard(Tar.Name) end) end
-end)
-
-btn.MouseButton1Click:Connect(function()
-    if not act then
-        act = true
-        btn.Text = "🛑 STOP SYSTEM"
-        btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        task.spawn(function() flyToFix() end)
+nut_bat_dau.MouseButton1Click:Connect(function()
+    if not dang_hoat_dong then
+        dang_hoat_dong = true
+        nut_bat_dau.Text = "DUNG"
+        nut_bat_dau.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
     else
-        act, stb, En, atk = false, false, false, false
-        stopMoving()
-        btn.Text = "▶ START SYSTEM"
-        btn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
-        local _, h, r = get()
+        dang_hoat_dong = false
+        dang_danh = false
+        dung_di_chuyen()
+        nut_bat_dau.Text = "BAT DAU"
+        nut_bat_dau.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
+        local _, h, r = lay_nhan_vat()
         if h and r then h:MoveTo(r.Position) end
     end
 end)
 
-local function up()
-    for _, v in pairs(sf:GetChildren()) do
+local function cap_nhat_danh_sach()
+    for _, v in pairs(khung_cuon:GetChildren()) do
         if v:IsA("TextButton") then v:Destroy() end
     end
     for _, pl in pairs(Players:GetPlayers()) do
-        if pl ~= player then
-            local b = Instance.new("TextButton", sf)
+        if pl ~= nguoi_choi then
+            local b = Instance.new("TextButton", khung_cuon)
             b.Size = UDim2.new(1, -6, 0, 24)
-            b.BackgroundColor3 = (Tar == pl) and Color3.fromRGB(120, 0, 150) or Color3.fromRGB(35, 35, 40)
+            b.BackgroundColor3 = (muc_tieu == pl) and Color3.fromRGB(120, 0, 150) or Color3.fromRGB(35, 35, 40)
             b.Text = "  " .. pl.Name
             b.TextColor3 = Color3.new(1, 1, 1)
             b.Font = Enum.Font.Gotham
@@ -515,57 +398,53 @@ local function up()
             Instance.new("UICorner", b).CornerRadius = UDim.new(0, 4)
             local ref = pl
             b.MouseButton1Click:Connect(function()
-                Tar = ref
-                up()
+                muc_tieu = ref
+                cap_nhat_danh_sach()
             end)
         end
     end
-    sf.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 5)
+    khung_cuon.CanvasSize = UDim2.new(0, 0, 0, danh_sach.AbsoluteContentSize.Y + 5)
 end
 
-Players.PlayerAdded:Connect(up)
+Players.PlayerAdded:Connect(cap_nhat_danh_sach)
 Players.PlayerRemoving:Connect(function(pl)
-    if Tar == pl then Tar = nil end
-    up()
+    if muc_tieu == pl then muc_tieu = nil end
+    cap_nhat_danh_sach()
 end)
-up()
+cap_nhat_danh_sach()
 
 task.spawn(function()
-    while g and g.Parent do
-        if Tar and Tar.Character and Tar.Character:FindFirstChild("Humanoid") then
-            local th = Tar.Character:FindFirstChild("Humanoid")
-            local status = th.Health < HP_THRESHOLD and " [STOMP]" or " [HIT+GRAB]"
-            lbl.Text = atk and "⚔️ " .. Tar.Name .. " (" .. math.floor(th.Health) .. " HP)" .. status or "🎯 Đợi mục tiêu vào Zone..."
+    while gui and gui.Parent do
+        if muc_tieu and muc_tieu.Character and muc_tieu.Character:FindFirstChild("Humanoid") then
+            local mau_dich = muc_tieu.Character:FindFirstChild("Humanoid")
+            local trang_thai = mau_dich.Health < nguong_mau and " [STOMP]" or " [HIT+GRAB]"
+            nhan_thong_tin.Text = dang_danh and muc_tieu.Name .. " (" .. math.floor(mau_dich.Health) .. " HP)" .. trang_thai or "Doi muc tieu..."
         else
-            lbl.Text = act and "📡 Sẵn sàng" or "❌ Dừng"
+            nhan_thong_tin.Text = dang_hoat_dong and "San sang" or "Dung"
         end
         task.wait(0.5)
     end
 end)
 
-local dragToggle = false
-local dragInput, dragStart, startPos
-
-mf.InputBegan:Connect(function(input)
+local dang_keo, du_lieu_keo, diem_bat_dau, vi_tri_bat_dau = false, nil, nil, nil
+khung_chinh.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragToggle = true
-        dragStart = input.Position
-        startPos = mf.Position
+        dang_keo = true
+        diem_bat_dau = input.Position
+        vi_tri_bat_dau = khung_chinh.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragToggle = false end
+            if input.UserInputState == Enum.UserInputState.End then dang_keo = false end
         end)
     end
 end)
-
-mf.InputChanged:Connect(function(input)
+khung_chinh.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
+        du_lieu_keo = input
     end
 end)
-
 UIS.InputChanged:Connect(function(input)
-    if input == dragInput and dragToggle then
-        local delta = input.Position - dragStart
-        mf.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    if input == du_lieu_keo and dang_keo then
+        local delta = input.Position - diem_bat_dau
+        khung_chinh.Position = UDim2.new(vi_tri_bat_dau.X.Scale, vi_tri_bat_dau.X.Offset + delta.X, vi_tri_bat_dau.Y.Scale, vi_tri_bat_dau.Y.Offset + delta.Y)
     end
 end)
