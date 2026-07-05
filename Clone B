@@ -1,4 +1,4 @@
---code số 37: BAY NGẦM DƯỚI ĐẤT + GIỮ ĐỨNG KHÔNG LÚN + AUTO RESPAWN (DELTAX MOBILE)
+--code số 39: BAY NGẦM DƯỚI ĐẤT KHÔNG TELE + GIỮ ĐỨNG + TỰ ĐI BỘ VỀ NẾU RA KHỎI ZONE + AUTO RESPAWN (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -12,9 +12,12 @@ local FIX_STAND = FIX + Vector3.new(3, 0, 0)
 local UNDERGROUND_Y = FIX_STAND.Y - 10
 local FLY_SPEED = 200
 local STUCK_TIMEOUT = 10
+local ZONE_RADIUS = 50
+local WALK_SPEED = 20
 
 local act, En = false, false
 local noclipConnection, standConnection = nil, nil
+local isWalkingBack = false
 
 local function getChar()
     local c = player.Character
@@ -45,10 +48,13 @@ local function enableStandLock()
     if standConnection then standConnection:Disconnect() end
     standConnection = RunService.Stepped:Connect(function()
         local _, _, r = getChar()
-        if r and r.Parent and not En then
-            if math.abs(r.Position.Y - FIX_STAND.Y) > 0.1 then
-                r.CFrame = CFrame.new(r.Position.X, FIX_STAND.Y, r.Position.Z)
-                r.Velocity = Vector3.zero
+        if r and r.Parent and not En and not isWalkingBack then
+            if r.Position.Y < FIX_STAND.Y - 0.1 then
+                r.Velocity = Vector3.new(r.Velocity.X, 2, r.Velocity.Z)
+            elseif r.Position.Y > FIX_STAND.Y + 0.1 then
+                r.Velocity = Vector3.new(r.Velocity.X, -2, r.Velocity.Z)
+            else
+                r.Velocity = Vector3.new(r.Velocity.X, 0, r.Velocity.Z)
             end
         end
     end)
@@ -61,6 +67,28 @@ local function disableStandLock()
     end
 end
 
+local function walkBackToZone()
+    if not act or isWalkingBack then return end
+    isWalkingBack = true
+    local c, h, r = getChar()
+    if not h or not r then isWalkingBack = false return end
+    disableStandLock()
+    h.WalkSpeed = WALK_SPEED
+    while act and isWalkingBack and r and r.Parent do
+        local dist = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)).Magnitude
+        if dist <= ZONE_RADIUS then break end
+        local dir = (Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z) - Vector3.new(r.Position.X, 0, r.Position.Z)).Unit
+        h:MoveTo(Vector3.new(r.Position.X + dir.X * 10, FIX_STAND.Y, r.Position.Z + dir.Z * 10))
+        r.Velocity = Vector3.new(dir.X * WALK_SPEED, r.Velocity.Y, dir.Z * WALK_SPEED)
+        task.wait(0.05)
+    end
+    isWalkingBack = false
+    h.WalkSpeed = 0
+    h:MoveTo(FIX_STAND)
+    task.wait(0.3)
+    enableStandLock()
+end
+
 local function flyUnderground()
     if not act then return end
     En = true
@@ -69,7 +97,14 @@ local function flyUnderground()
     enableNoclip()
     h.PlatformStand = true
     workspace.Gravity = 0
-    r.CFrame = CFrame.new(r.Position.X, UNDERGROUND_Y, r.Position.Z)
+    local startY = r.Position.Y
+    local targetY = UNDERGROUND_Y
+    local step = (targetY - startY) / 40
+    for i = 1, 40 do
+        if not act or not r or not r.Parent then break end
+        r.Velocity = Vector3.new(0, step * 20, 0)
+        task.wait(0.02)
+    end
     r.Velocity = Vector3.zero
     local lastPos = r.Position
     local stuckTime = 0
@@ -78,11 +113,10 @@ local function flyUnderground()
         local flatTgt = Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)
         if (flatCur - flatTgt).Magnitude <= 3 then break end
         local dir = (flatTgt - flatCur).Unit
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, 0, dir.Z * FLY_SPEED)
-        r.CFrame = CFrame.new(r.Position.X, UNDERGROUND_Y, r.Position.Z)
+        r.Velocity = Vector3.new(dir.X * FLY_SPEED, (UNDERGROUND_Y - r.Position.Y) * 10, dir.Z * FLY_SPEED)
         h.AutoRotate = false
         if dir.Magnitude > 0.01 then
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, UNDERGROUND_Y, r.Position.Z + dir.Z))
+            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
         end
         if (r.Position - lastPos).Magnitude < 0.5 then
             stuckTime = stuckTime + 0.1
@@ -97,13 +131,14 @@ local function flyUnderground()
     r.Velocity = Vector3.zero
     if r and r.Parent then
         local curY = r.Position.Y
-        for t = 0, 1, 0.05 do
+        local diffY = FIX_STAND.Y - curY
+        local steps2 = math.abs(diffY) / 0.5
+        for i = 1, math.floor(steps2) do
             if not act or not r or not r.Parent then break end
-            r.CFrame = CFrame.new(r.Position.X, curY + (FIX_STAND.Y - curY) * t, r.Position.Z)
-            r.Velocity = Vector3.zero
+            r.Velocity = Vector3.new(0, diffY > 0 and 10 or -10, 0)
+            if math.abs(r.Position.Y - FIX_STAND.Y) <= 0.5 then break end
             task.wait(0.02)
         end
-        r.CFrame = CFrame.new(FIX_STAND.X, FIX_STAND.Y, FIX_STAND.Z)
         r.Velocity = Vector3.zero
     end
     h.PlatformStand = false
@@ -113,6 +148,20 @@ local function flyUnderground()
     h.WalkSpeed = 0
     enableStandLock()
 end
+
+task.spawn(function()
+    while task.wait(0.5) do
+        if act and not En and not isWalkingBack then
+            local _, _, r = getChar()
+            if r and r.Parent then
+                local dist = (Vector3.new(r.Position.X, 0, r.Position.Z) - Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)).Magnitude
+                if dist > ZONE_RADIUS then
+                    task.spawn(function() walkBackToZone() end)
+                end
+            end
+        end
+    end
+end)
 
 local g = Instance.new("ScreenGui")
 g.Name = "FLY_GUI"
@@ -139,7 +188,7 @@ Instance.new("UICorner", head).CornerRadius = UDim.new(0, 14)
 local title = Instance.new("TextLabel", head)
 title.Size = UDim2.new(0.5, 0, 1, 0)
 title.Position = UDim2.new(0.05, 0, 0, 0)
-title.Text = "BAY NGAM"
+title.Text = "BAY NGAM + ZONE"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 11
@@ -194,7 +243,7 @@ statusLabel.TextSize = 10
 local noclipLabel = Instance.new("TextLabel", body)
 noclipLabel.Size = UDim2.new(1, -20, 0, 18)
 noclipLabel.Position = UDim2.new(0, 10, 0, 68)
-noclipLabel.Text = "Noclip: TAT"
+noclipLabel.Text = "Noclip: TAT | Zone: " .. ZONE_RADIUS .. " studs"
 noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
 noclipLabel.BackgroundTransparency = 1
 noclipLabel.Font = Enum.Font.Gotham
@@ -228,6 +277,7 @@ end)
 cls.MouseButton1Click:Connect(function()
     act = false
     En = false
+    isWalkingBack = false
     disableNoclip()
     disableStandLock()
     g:Destroy()
@@ -244,27 +294,28 @@ flyBtn.MouseButton1Click:Connect(function()
         flyBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
         statusLabel.Text = "Trang thai: BAY NGAM..."
         statusLabel.TextColor3 = Color3.new(1, 1, 0)
-        noclipLabel.Text = "Noclip: BAT"
+        noclipLabel.Text = "Noclip: BAT | Zone: " .. ZONE_RADIUS .. " studs"
         noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.spawn(function()
             flyUnderground()
             if act then
                 statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
                 statusLabel.TextColor3 = Color3.new(0, 1, 0)
-                noclipLabel.Text = "Noclip: TAT"
+                noclipLabel.Text = "Noclip: TAT | Zone: " .. ZONE_RADIUS .. " studs"
                 noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
             end
         end)
     else
         act = false
         En = false
+        isWalkingBack = false
         disableNoclip()
         disableStandLock()
         flyBtn.Text = "START"
         flyBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 80)
         statusLabel.Text = "Trang thai: DUNG"
         statusLabel.TextColor3 = Color3.new(1, 0.8, 0)
-        noclipLabel.Text = "Noclip: TAT"
+        noclipLabel.Text = "Noclip: TAT | Zone: " .. ZONE_RADIUS .. " studs"
         noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
         local _, h, r = getChar()
         if h and r then
@@ -278,7 +329,7 @@ player.CharacterAdded:Connect(function()
     if act then
         statusLabel.Text = "Trang thai: RESPAWN - BAY NGAM LAI..."
         statusLabel.TextColor3 = Color3.new(1, 1, 0)
-        noclipLabel.Text = "Noclip: BAT"
+        noclipLabel.Text = "Noclip: BAT | Zone: " .. ZONE_RADIUS .. " studs"
         noclipLabel.TextColor3 = Color3.new(0, 1, 0)
         task.wait(1)
         task.spawn(function()
@@ -286,7 +337,7 @@ player.CharacterAdded:Connect(function()
             if act then
                 statusLabel.Text = "Trang thai: DA DEN - DUNG IM"
                 statusLabel.TextColor3 = Color3.new(0, 1, 0)
-                noclipLabel.Text = "Noclip: TAT"
+                noclipLabel.Text = "Noclip: TAT | Zone: " .. ZONE_RADIUS .. " studs"
                 noclipLabel.TextColor3 = Color3.new(1, 0.3, 0.3)
             end
         end)
