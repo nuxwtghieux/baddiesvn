@@ -1,4 +1,4 @@
---code so 56: CLONE A - LUON HIT + STOMP KHI DUOI 3 MAU + HIT GRAB KHI TREN 3 MAU (DELTAX MOBILE)
+--code so 57: CLONE A - HIT + GRAB TREN 3 MAU - HIT + STOMP DUOI 3 MAU (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -27,7 +27,6 @@ end)
 
 local toc_do_chay = 20
 local tam_danh = 4
-local tam_stomp = 1.5
 local tam_lui = 3
 local nguong_mau = 3
 
@@ -39,10 +38,8 @@ local tac_vu_di_chuyen = nil
 
 local function lay_nut_stomp()
     for _, v in ipairs(gui_nguoi_choi:GetDescendants()) do
-        if v.Name == "Stomp" and v.Parent and v.Parent.Name == "MobileButtons" then
-            if v:IsA("TextButton") or v:IsA("ImageButton") then
-                return v
-            end
+        if v.Name == "Stomp" and v:IsA("TextButton") or v:IsA("ImageButton") then
+            return v
         end
     end
     return nil
@@ -51,20 +48,13 @@ end
 local function bam_nut(nut)
     if not nut then return false end
     pcall(function()
-        nut:FireEvent("MouseButton1Click")
-        nut:Activate()
         local pos = nut.AbsolutePosition
         local size = nut.AbsoluteSize
-        if pos.X > 0 and pos.Y > 0 then
-            local x = pos.X + size.X / 2
-            local y = pos.Y + size.Y / 2
-            if nut.InputBegan then
-                nut.InputBegan:Fire({
-                    UserInputType = Enum.UserInputType.MouseButton1,
-                    Position = Vector2.new(x, y)
-                })
-            end
-        end
+        local x = pos.X + size.X / 2
+        local y = pos.Y + size.Y / 2
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
+        task.wait(0.01)
+        VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
     end)
     return true
 end
@@ -124,6 +114,7 @@ local function stomp()
     bam_phim(Enum.KeyCode.E)
     local nut = lay_nut_stomp()
     if nut then bam_nut(nut) end
+    danh()
 end
 
 local function dung_di_chuyen()
@@ -147,28 +138,6 @@ local function di_toi_muc_tieu(dich)
             if not dich2 then break end
             local khoang_cach = (r.Position - dich2.Position).Magnitude
             if khoang_cach <= tam_danh then break end
-            r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich2.Position.X, r.Position.Y, dich2.Position.Z))
-            h:MoveTo(dich2.Position)
-            task.wait(0.05)
-        end
-        dang_di_chuyen = false
-        tac_vu_di_chuyen = nil
-    end)
-end
-
-local function di_toi_tam_stomp(dich)
-    if tac_vu_di_chuyen then task.cancel(tac_vu_di_chuyen) end
-    dang_di_chuyen = true
-    tac_vu_di_chuyen = task.spawn(function()
-        local _, h, r = lay_nhan_vat()
-        if not h or not r then dang_di_chuyen = false return end
-        h.WalkSpeed = toc_do_chay
-        while dang_hoat_dong and dang_di_chuyen and r and r.Parent and dich and dich.Parent do
-            if not muc_tieu or not muc_tieu.Character then break end
-            local dich2 = muc_tieu.Character:FindFirstChild("HumanoidRootPart")
-            if not dich2 then break end
-            local khoang_cach = (r.Position - dich2.Position).Magnitude
-            if khoang_cach <= tam_stomp then break end
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich2.Position.X, r.Position.Y, dich2.Position.Z))
             h:MoveTo(dich2.Position)
             task.wait(0.05)
@@ -240,10 +209,10 @@ task.spawn(function()
         local khoang_cach = (r.Position - dich.Position).Magnitude
         
         if mau_dich.Health < nguong_mau then
-            if khoang_cach > tam_stomp then
+            if khoang_cach > tam_danh then
                 dang_danh = true
                 if not dang_di_chuyen then
-                    di_toi_tam_stomp(dich)
+                    di_toi_muc_tieu(dich)
                 end
             elseif khoang_cach < 1 then
                 dang_danh = true
@@ -255,7 +224,6 @@ task.spawn(function()
                 dang_danh = true
                 r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich.Position.X, r.Position.Y, dich.Position.Z))
                 trang_bi_nam_dam()
-                danh()
                 stomp()
                 task.wait(0.02)
             end
