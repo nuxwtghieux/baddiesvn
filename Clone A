@@ -1,4 +1,4 @@
---code so 54: CLONE A - LUON HIT + STOMP - KHONG BAY - KHONG ZONE - TOC DO 20 (DELTAX MOBILE)
+--code so 56: CLONE A - LUON HIT + STOMP KHI DUOI 3 MAU + HIT GRAB KHI TREN 3 MAU (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -28,6 +28,7 @@ end)
 local toc_do_chay = 20
 local tam_danh = 4
 local tam_stomp = 1.5
+local tam_lui = 3
 local nguong_mau = 3
 
 local dang_hoat_dong = false
@@ -123,7 +124,6 @@ local function stomp()
     bam_phim(Enum.KeyCode.E)
     local nut = lay_nut_stomp()
     if nut then bam_nut(nut) end
-    danh()
 end
 
 local function dung_di_chuyen()
@@ -178,6 +178,27 @@ local function di_toi_tam_stomp(dich)
     end)
 end
 
+local function lui_ra(dich, muc_tieu_khoang_cach)
+    if tac_vu_di_chuyen then task.cancel(tac_vu_di_chuyen) end
+    dang_di_chuyen = true
+    tac_vu_di_chuyen = task.spawn(function()
+        local _, h, r = lay_nhan_vat()
+        if not h or not r then dang_di_chuyen = false return end
+        h.WalkSpeed = toc_do_chay
+        local huong_lui = (r.Position - dich.Position).Unit
+        if huong_lui.Magnitude < 0.01 then huong_lui = Vector3.new(0, 0, -1) end
+        local vi_tri_lui = r.Position + huong_lui * muc_tieu_khoang_cach
+        while dang_hoat_dong and dang_di_chuyen and r and r.Parent do
+            local khoang_cach = (r.Position - vi_tri_lui).Magnitude
+            if khoang_cach <= 0.5 then break end
+            h:MoveTo(vi_tri_lui)
+            task.wait(0.05)
+        end
+        dang_di_chuyen = false
+        tac_vu_di_chuyen = nil
+    end)
+end
+
 task.spawn(function()
     while true do
         task.wait(0.03)
@@ -224,11 +245,17 @@ task.spawn(function()
                 if not dang_di_chuyen then
                     di_toi_tam_stomp(dich)
                 end
+            elseif khoang_cach < 1 then
+                dang_danh = true
+                if not dang_di_chuyen then
+                    lui_ra(dich, tam_lui)
+                end
             else
                 dung_di_chuyen()
                 dang_danh = true
                 r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich.Position.X, r.Position.Y, dich.Position.Z))
                 trang_bi_nam_dam()
+                danh()
                 stomp()
                 task.wait(0.02)
             end
@@ -237,6 +264,11 @@ task.spawn(function()
                 dang_danh = true
                 if not dang_di_chuyen then
                     di_toi_muc_tieu(dich)
+                end
+            elseif khoang_cach < 1 then
+                dang_danh = true
+                if not dang_di_chuyen then
+                    lui_ra(dich, tam_lui)
                 end
             else
                 dung_di_chuyen()
@@ -417,7 +449,7 @@ task.spawn(function()
     while gui and gui.Parent do
         if muc_tieu and muc_tieu.Character and muc_tieu.Character:FindFirstChild("Humanoid") then
             local mau_dich = muc_tieu.Character:FindFirstChild("Humanoid")
-            local trang_thai = mau_dich.Health < nguong_mau and " [STOMP]" or " [HIT+GRAB]"
+            local trang_thai = mau_dich.Health < nguong_mau and " [HIT+STOMP]" or " [HIT+GRAB]"
             nhan_thong_tin.Text = dang_danh and muc_tieu.Name .. " (" .. math.floor(mau_dich.Health) .. " HP)" .. trang_thai or "Doi muc tieu..."
         else
             nhan_thong_tin.Text = dang_hoat_dong and "San sang" or "Dung"
