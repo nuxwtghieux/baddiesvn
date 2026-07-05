@@ -1,0 +1,156 @@
+--code số 16: Chỉ xóa danh sách, không kèm gì khác
+local function xoaTatCa()
+    local ds = {
+        "House", "Houses",
+        "SoundArea", "SoundAreas",
+        "Tree", "Trees",
+        "NPC", "NPCs",
+        "ATM", "ATMs",
+        "Building", "Buildings",
+        "Cashier", "Cashiers",
+        "Dirt", "Dirts",
+        "Door", "Doors",
+        "Dumpster", "Dumpsters",
+        "Lightpole", "Lightpoles",
+        "Showcase", "Showcases",
+        "Terrain", "Terrains",
+        "InvisibleWall", "InvisibleWalls",
+        "Purchasable", "Purchasables",
+        "Temporary", "Temporaries",
+        "Job", "Jobs",
+        "SlideWalk", "SlideWalks",
+        "BeachAsset", "BeachAssets",
+        "BeachShower", "BeachShowers",
+        "Yacht", "Yachts",
+        "Yacht2", "Yacht2s",
+        "Boat", "Boats",
+        "Jetski", "Jetskis",
+        "Speedboat", "Speedboats",
+        "Basketball", "Basketballs"
+    }
+    local count = 0
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        for _, t in ipairs(ds) do
+            if obj.Name == t or obj.ClassName == t then
+                pcall(function() obj:Destroy() end)
+                count = count + 1
+                break
+            end
+        end
+    end
+    return count
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "XoaDS"
+gui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+
+local f = Instance.new("Frame", gui)
+f.Name = "Main"
+f.BackgroundColor3 = Color3.fromRGB(16,16,26)
+f.Position = UDim2.new(0.5,-180,0.5,-100)
+f.Size = UDim2.new(0,360,0,200)
+f.Active = true
+f.Draggable = true
+Instance.new("UICorner",f).CornerRadius = UDim.new(0,14)
+Instance.new("UIGradient",f).Color = ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(20,20,36)),ColorSequenceKeypoint.new(1,Color3.fromRGB(12,12,22))})
+
+local top = Instance.new("Frame",f)
+top.BackgroundColor3 = Color3.fromRGB(26,26,40)
+top.Size = UDim2.new(1,0,0,44)
+Instance.new("UICorner",top).CornerRadius = UDim.new(0,14)
+
+local title = Instance.new("TextLabel",top)
+title.BackgroundTransparency = 1
+title.Position = UDim2.new(0,15,0,0)
+title.Size = UDim2.new(0,180,1,0)
+title.Font = Enum.Font.GothamBold
+title.Text = "XÓA DANH SÁCH"
+title.TextColor3 = Color3.new(1,1,1)
+title.TextSize = 15
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local minBtn = Instance.new("TextButton",top)
+minBtn.BackgroundColor3 = Color3.fromRGB(255,160,10)
+minBtn.Position = UDim2.new(1,-74,0.5,-12)
+minBtn.Size = UDim2.new(0,26,0,24)
+minBtn.Font = Enum.Font.GothamBold
+minBtn.Text = "─"
+minBtn.TextColor3 = Color3.new(0,0,0)
+minBtn.TextSize = 15
+Instance.new("UICorner",minBtn).CornerRadius = UDim.new(0,7)
+
+local closeBtn = Instance.new("TextButton",top)
+closeBtn.BackgroundColor3 = Color3.fromRGB(255,40,40)
+closeBtn.Position = UDim2.new(1,-40,0.5,-12)
+closeBtn.Size = UDim2.new(0,26,0,24)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.TextSize = 15
+Instance.new("UICorner",closeBtn).CornerRadius = UDim.new(0,7)
+
+local status = Instance.new("TextLabel",f)
+status.BackgroundTransparency = 1
+status.Position = UDim2.new(0,18,0,56)
+status.Size = UDim2.new(1,-36,0,30)
+status.Font = Enum.Font.Gotham
+status.Text = "Sẵn sàng xóa 26 loại vật thể"
+status.TextColor3 = Color3.fromRGB(160,160,180)
+status.TextSize = 12
+status.TextXAlignment = Enum.TextXAlignment.Left
+
+local delBtn = Instance.new("TextButton",f)
+delBtn.BackgroundColor3 = Color3.fromRGB(180,35,35)
+delBtn.Position = UDim2.new(0,20,0,100)
+delBtn.Size = UDim2.new(0,195,0,46)
+delBtn.Font = Enum.Font.GothamBold
+delBtn.Text = "XÓA TẤT CẢ"
+delBtn.TextColor3 = Color3.new(1,1,1)
+delBtn.TextSize = 15
+Instance.new("UICorner",delBtn).CornerRadius = UDim.new(0,11)
+
+local copyBtn = Instance.new("TextButton",f)
+copyBtn.BackgroundColor3 = Color3.fromRGB(45,115,205)
+copyBtn.Position = UDim2.new(0,230,0,100)
+copyBtn.Size = UDim2.new(0,110,0,46)
+copyBtn.Font = Enum.Font.GothamBold
+copyBtn.Text = "COPY DS"
+copyBtn.TextColor3 = Color3.new(1,1,1)
+copyBtn.TextSize = 14
+Instance.new("UICorner",copyBtn).CornerRadius = UDim.new(0,11)
+
+local thuNho = false
+
+delBtn.MouseButton1Click:Connect(function()
+    local c = xoaTatCa()
+    status.Text = "✅ Đã xóa "..c.." vật thể!"
+    task.wait(3)
+    status.Text = "Sẵn sàng xóa 26 loại vật thể"
+end)
+
+copyBtn.MouseButton1Click:Connect(function()
+    pcall(function() setclipboard("Houses, SoundAreas, Trees, NPCs, ATMs, Buildings, Cashiers, Dirts, Doors, Dumpsters, Lightpoles, Showcases, Terrains, InvisibleWalls, Purchasables, Temporaries, Jobs, SlideWalks, BeachAssets, BeachShowers, Yachts, Yacht2s, Boats, Jetskis, Speedboats, Basketballs") end)
+    status.Text = "✅ Đã copy danh sách!"
+    task.wait(2)
+    status.Text = "Sẵn sàng xóa 26 loại vật thể"
+end)
+
+minBtn.MouseButton1Click:Connect(function()
+    thuNho = not thuNho
+    if thuNho then
+        f.Size = UDim2.new(0,360,0,44)
+        delBtn.Visible = false
+        copyBtn.Visible = false
+        status.Visible = false
+    else
+        f.Size = UDim2.new(0,360,0,200)
+        delBtn.Visible = true
+        copyBtn.Visible = true
+        status.Visible = true
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
