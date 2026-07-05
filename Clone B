@@ -1,4 +1,4 @@
---code số 39: BAY NGẦM DƯỚI ĐẤT KHÔNG TELE + GIỮ ĐỨNG + TỰ ĐI BỘ VỀ NẾU RA KHỎI ZONE + AUTO RESPAWN (DELTAX MOBILE)
+--code số 40: BAY NGẦM DƯỚI ĐẤT NHANH + TRỒI LÊN ĐÚNG TỌA ĐỘ + GIỮ ĐỨNG + TỰ ĐI BỘ VỀ NẾU RA ZONE + AUTO RESPAWN (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -10,8 +10,8 @@ pcall(function() if PlayerGui:FindFirstChild("FLY_GUI") then PlayerGui.FLY_GUI:D
 local FIX = Vector3.new(563.2, 3.9, -20.8)
 local FIX_STAND = FIX + Vector3.new(3, 0, 0)
 local UNDERGROUND_Y = FIX_STAND.Y - 10
-local FLY_SPEED = 200
-local STUCK_TIMEOUT = 10
+local FLY_SPEED = 300
+local STUCK_TIMEOUT = 5
 local ZONE_RADIUS = 50
 local WALK_SPEED = 20
 
@@ -97,14 +97,8 @@ local function flyUnderground()
     enableNoclip()
     h.PlatformStand = true
     workspace.Gravity = 0
-    local startY = r.Position.Y
-    local targetY = UNDERGROUND_Y
-    local step = (targetY - startY) / 40
-    for i = 1, 40 do
-        if not act or not r or not r.Parent then break end
-        r.Velocity = Vector3.new(0, step * 20, 0)
-        task.wait(0.02)
-    end
+    r.Velocity = Vector3.new(0, -FLY_SPEED, 0)
+    task.wait(0.05)
     r.Velocity = Vector3.zero
     local lastPos = r.Position
     local stuckTime = 0
@@ -113,7 +107,7 @@ local function flyUnderground()
         local flatTgt = Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)
         if (flatCur - flatTgt).Magnitude <= 3 then break end
         local dir = (flatTgt - flatCur).Unit
-        r.Velocity = Vector3.new(dir.X * FLY_SPEED, (UNDERGROUND_Y - r.Position.Y) * 10, dir.Z * FLY_SPEED)
+        r.Velocity = Vector3.new(dir.X * FLY_SPEED, (UNDERGROUND_Y - r.Position.Y) * 20, dir.Z * FLY_SPEED)
         h.AutoRotate = false
         if dir.Magnitude > 0.01 then
             r.CFrame = CFrame.lookAt(r.Position, Vector3.new(r.Position.X + dir.X, r.Position.Y, r.Position.Z + dir.Z))
@@ -130,16 +124,22 @@ local function flyUnderground()
     En = false
     r.Velocity = Vector3.zero
     if r and r.Parent then
-        local curY = r.Position.Y
-        local diffY = FIX_STAND.Y - curY
-        local steps2 = math.abs(diffY) / 0.5
-        for i = 1, math.floor(steps2) do
-            if not act or not r or not r.Parent then break end
-            r.Velocity = Vector3.new(0, diffY > 0 and 10 or -10, 0)
-            if math.abs(r.Position.Y - FIX_STAND.Y) <= 0.5 then break end
+        r.Velocity = Vector3.new(0, FLY_SPEED, 0)
+        while act and r and r.Parent and r.Position.Y < FIX_STAND.Y - 0.5 do
             task.wait(0.02)
         end
         r.Velocity = Vector3.zero
+        local flatCur2 = Vector3.new(r.Position.X, 0, r.Position.Z)
+        local flatTgt2 = Vector3.new(FIX_STAND.X, 0, FIX_STAND.Z)
+        if (flatCur2 - flatTgt2).Magnitude > 0.5 then
+            local dir2 = (flatTgt2 - flatCur2).Unit
+            r.Velocity = Vector3.new(dir2.X * FLY_SPEED, 0, dir2.Z * FLY_SPEED)
+            while act and r and r.Parent and (Vector3.new(r.Position.X, 0, r.Position.Z) - flatTgt2).Magnitude > 0.5 do
+                task.wait(0.02)
+            end
+            r.Velocity = Vector3.zero
+        end
+        task.wait(0.1)
     end
     h.PlatformStand = false
     h.AutoRotate = true
