@@ -1,4 +1,4 @@
---code so 57: CLONE A - HIT + GRAB TREN 3 MAU - HIT + STOMP DUOI 3 MAU (DELTAX MOBILE)
+--code so 57: CLONE A - HIT + GRAB TREN 3 MAU - HIT + STOMP DUOI 3 MAU - UU TIEN NAILS (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -73,35 +73,57 @@ local function lay_nhan_vat()
     return c, c:FindFirstChild("Humanoid"), c:FindFirstChild("HumanoidRootPart")
 end
 
-local function trang_bi_nam_dam()
+local function lay_tool_uu_tien()
     local c = nguoi_choi.Character
-    if not c then return false end
-    local h = c:FindFirstChild("Humanoid")
-    if not h then return false end
+    if not c then return nil end
+    for _, v in pairs(c:GetChildren()) do
+        if v:IsA("Tool") and v.Name == "Nails" then
+            return v
+        end
+    end
     for _, v in pairs(c:GetChildren()) do
         if v:IsA("Tool") and v.Name == "Fist" then
-            return true
+            return v
         end
     end
     local bp = nguoi_choi:FindFirstChild("Backpack")
     if bp then
+        local nails = bp:FindFirstChild("Nails")
+        if nails then
+            return nails
+        end
         local fist = bp:FindFirstChild("Fist")
         if fist then
-            h:EquipTool(fist)
-            task.wait(0.02)
-            return true
+            return fist
         end
+    end
+    return nil
+end
+
+local function trang_bi_vu_khi()
+    local c = nguoi_choi.Character
+    if not c then return false end
+    local h = c:FindFirstChild("Humanoid")
+    if not h then return false end
+    local tool_hien_tai = lay_tool_uu_tien()
+    if tool_hien_tai and tool_hien_tai.Parent == c then
+        return true
+    end
+    if tool_hien_tai and tool_hien_tai.Parent ~= c then
+        h:EquipTool(tool_hien_tai)
+        task.wait(0.02)
+        return true
     end
     return false
 end
 
 local function danh()
-    trang_bi_nam_dam()
+    trang_bi_vu_khi()
     local c = nguoi_choi.Character
     if c then
-        local fist = c:FindFirstChild("Fist")
-        if fist and fist:IsA("Tool") then
-            pcall(function() fist:Activate() end)
+        local tool = lay_tool_uu_tien()
+        if tool and tool:IsA("Tool") then
+            pcall(function() tool:Activate() end)
         end
     end
 end
@@ -223,7 +245,6 @@ task.spawn(function()
                 dung_di_chuyen()
                 dang_danh = true
                 r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich.Position.X, r.Position.Y, dich.Position.Z))
-                trang_bi_nam_dam()
                 stomp()
                 task.wait(0.02)
             end
@@ -242,7 +263,6 @@ task.spawn(function()
                 dung_di_chuyen()
                 dang_danh = true
                 r.CFrame = CFrame.lookAt(r.Position, Vector3.new(dich.Position.X, r.Position.Y, dich.Position.Z))
-                trang_bi_nam_dam()
                 danh()
                 tom()
                 task.wait(0.02)
