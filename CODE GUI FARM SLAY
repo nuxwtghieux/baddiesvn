@@ -1,0 +1,243 @@
+--code so 59: GUI TONG HOP 2 NUT - CHI CHAY 1 LAN (DELTAX MOBILE)
+local nguoi_choi = game:GetService("Players").LocalPlayer
+local gui_nguoi_choi = nguoi_choi:WaitForChild("PlayerGui")
+
+pcall(function() 
+    if gui_nguoi_choi:FindFirstChild("TONG_GUI") then 
+        gui_nguoi_choi.TONG_GUI:Destroy() 
+    end 
+end)
+
+local da_chay_acc_chu, da_chay_acc_clone = false, false
+
+-- GIAO DIEN CHINH
+local gui = Instance.new("ScreenGui") 
+gui.Name = "TONG_GUI" 
+gui.ResetOnSpawn = false 
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling 
+gui.Parent = gui_nguoi_choi
+
+local khung_chinh = Instance.new("Frame", gui) 
+khung_chinh.Size = UDim2.new(0, 200, 0, 100) 
+khung_chinh.AnchorPoint = Vector2.new(0.5, 0.5) 
+khung_chinh.Position = UDim2.new(0.5, 0, 0.5, 0) 
+khung_chinh.BackgroundColor3 = Color3.fromRGB(15, 15, 20) 
+khung_chinh.BackgroundTransparency = 0.1 
+khung_chinh.BorderSizePixel = 0 
+khung_chinh.Active = true 
+Instance.new("UICorner", khung_chinh).CornerRadius = UDim.new(0, 12)
+
+local thanh_tren = Instance.new("Frame", khung_chinh) 
+thanh_tren.Size = UDim2.new(1, 0, 0, 28) 
+thanh_tren.BackgroundColor3 = Color3.fromRGB(25, 25, 30) 
+thanh_tren.BorderSizePixel = 0 
+Instance.new("UICorner", thanh_tren).CornerRadius = UDim.new(0, 12)
+
+local tieu_de = Instance.new("TextLabel", thanh_tren) 
+tieu_de.Size = UDim2.new(0.5, 0, 1, 0) 
+tieu_de.Position = UDim2.new(0.05, 0, 0, 0) 
+tieu_de.Text = "TONG HOP" 
+tieu_de.TextColor3 = Color3.new(1, 1, 1) 
+tieu_de.Font = Enum.Font.GothamBold 
+tieu_de.TextSize = 11 
+tieu_de.BackgroundTransparency = 1 
+tieu_de.TextXAlignment = Enum.TextXAlignment.Left
+
+local nut_dong = Instance.new("TextButton", thanh_tren) 
+nut_dong.Size = UDim2.new(0, 20, 0, 20) 
+nut_dong.Position = UDim2.new(1, -26, 0, 4) 
+nut_dong.Text = "x" 
+nut_dong.TextColor3 = Color3.new(1, 1, 1) 
+nut_dong.BackgroundColor3 = Color3.fromRGB(220, 50, 50) 
+nut_dong.Font = Enum.Font.GothamBold 
+nut_dong.TextSize = 10 
+Instance.new("UICorner", nut_dong).CornerRadius = UDim.new(0, 4)
+
+local nut_thu_nho = Instance.new("TextButton", thanh_tren) 
+nut_thu_nho.Size = UDim2.new(0, 20, 0, 20) 
+nut_thu_nho.Position = UDim2.new(1, -50, 0, 4) 
+nut_thu_nho.Text = "-" 
+nut_thu_nho.TextColor3 = Color3.new(1, 1, 1) 
+nut_thu_nho.BackgroundColor3 = Color3.fromRGB(200, 150, 30) 
+nut_thu_nho.Font = Enum.Font.GothamBold 
+nut_thu_nho.TextSize = 10 
+Instance.new("UICorner", nut_thu_nho).CornerRadius = UDim.new(0, 4)
+
+local than_khung = Instance.new("Frame", khung_chinh) 
+than_khung.Size = UDim2.new(1, 0, 1, -28) 
+than_khung.Position = UDim2.new(0, 0, 0, 28) 
+than_khung.BackgroundTransparency = 1
+
+local nut_acc_chu = Instance.new("TextButton", than_khung) 
+nut_acc_chu.Size = UDim2.new(1, -20, 0, 28) 
+nut_acc_chu.Position = UDim2.new(0, 10, 0, 8) 
+nut_acc_chu.Text = "ACC CHU" 
+nut_acc_chu.TextColor3 = Color3.new(1, 1, 1) 
+nut_acc_chu.BackgroundColor3 = Color3.fromRGB(0, 140, 70) 
+nut_acc_chu.Font = Enum.Font.GothamBold 
+nut_acc_chu.TextSize = 12 
+Instance.new("UICorner", nut_acc_chu).CornerRadius = UDim.new(0, 6)
+
+local nut_acc_clone = Instance.new("TextButton", than_khung) 
+nut_acc_clone.Size = UDim2.new(1, -20, 0, 28) 
+nut_acc_clone.Position = UDim2.new(0, 10, 0, 42) 
+nut_acc_clone.Text = "ACC CLONE" 
+nut_acc_clone.TextColor3 = Color3.new(1, 1, 1) 
+nut_acc_clone.BackgroundColor3 = Color3.fromRGB(0, 100, 180) 
+nut_acc_clone.Font = Enum.Font.GothamBold 
+nut_acc_clone.TextSize = 12 
+Instance.new("UICorner", nut_acc_clone).CornerRadius = UDim.new(0, 6)
+
+-- TIEN TRINH CHAY SCRIPT (DA FIX THREAD RIENG + DU LINK GOC CUA BAN)
+local function chay_acc_chu()
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/Clone%20A"))() 
+    end) 
+    task.wait(0.5)
+    
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/Clone%20B"))() 
+    end) 
+    task.wait(0.5)
+    
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-ANTI-AFK-by-gun-265109"))() 
+    end) 
+    task.wait(0.5)
+    
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/Remove%20MAp"))() 
+    end) 
+    
+    task.wait(5) 
+    pcall(function() gui:Destroy() end)
+end
+
+local function chay_acc_clone()
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/Clone%20B"))() 
+    end) 
+    task.wait(0.5)
+    
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-ANTI-AFK-by-gun-265109"))() 
+    end) 
+    task.wait(0.5)
+    
+    task.spawn(pcall, function() 
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/nuxwtghieux/baddiesvn/refs/heads/main/Remove%20MAp"))() 
+    end) 
+    
+    task.wait(5) 
+    pcall(function() gui:Destroy() end)
+end
+
+-- GUI XAC NHAN
+local function tao_gui_xac_nhan(ten_nut, callback)
+    local gui_xn = Instance.new("ScreenGui") 
+    gui_xn.Name = "XAC_NHAN_GUI" 
+    gui_xn.ResetOnSpawn = false 
+    gui_xn.ZIndexBehavior = Enum.ZIndexBehavior.Sibling 
+    gui_xn.Parent = gui_nguoi_choi
+    
+    local khung_xn = Instance.new("Frame", gui_xn) 
+    khung_xn.Size = UDim2.new(0, 180, 0, 80) 
+    khung_xn.AnchorPoint = Vector2.new(0.5, 0.5) 
+    khung_xn.Position = UDim2.new(0.5, 0, 0.5, 0) 
+    khung_xn.BackgroundColor3 = Color3.fromRGB(20, 20, 25) 
+    khung_xn.BorderSizePixel = 0 
+    Instance.new("UICorner", khung_xn).CornerRadius = UDim.new(0, 12)
+    
+    local nhan_xn = Instance.new("TextLabel", khung_xn) 
+    nhan_xn.Size = UDim2.new(1, 0, 0, 30) 
+    nhan_xn.Position = UDim2.new(0, 0, 0, 8) 
+    nhan_xn.Text = "Chay " .. ten_nut .. "?" 
+    nhan_xn.TextColor3 = Color3.new(1, 1, 1) 
+    nhan_xn.BackgroundTransparency = 1 
+    nhan_xn.Font = Enum.Font.GothamBold 
+    nhan_xn.TextSize = 12
+    
+    local nut_co = Instance.new("TextButton", khung_xn) 
+    nut_co.Size = UDim2.new(0, 60, 0, 26) 
+    nut_co.Position = UDim2.new(0, 20, 0, 44) 
+    nut_co.Text = "CO" 
+    nut_co.TextColor3 = Color3.new(1, 1, 1) 
+    nut_co.BackgroundColor3 = Color3.fromRGB(0, 150, 80) 
+    nut_co.Font = Enum.Font.GothamBold 
+    nut_co.TextSize = 11 
+    Instance.new("UICorner", nut_co).CornerRadius = UDim.new(0, 5)
+    
+    local nut_khong = Instance.new("TextButton", khung_xn) 
+    nut_khong.Size = UDim2.new(0, 60, 0, 26) 
+    nut_khong.Position = UDim2.new(0, 100, 0, 44) 
+    nut_khong.Text = "KHONG" 
+    nut_khong.TextColor3 = Color3.new(1, 1, 1) 
+    nut_khong.BackgroundColor3 = Color3.fromRGB(200, 50, 50) 
+    nut_khong.Font = Enum.Font.GothamBold 
+    nut_khong.TextSize = 11 
+    Instance.new("UICorner", nut_khong).CornerRadius = UDim.new(0, 5)
+    
+    nut_co.MouseButton1Click:Connect(function() 
+        gui_xn:Destroy() 
+        if khung_chinh then khung_chinh.Visible = false end 
+        callback() 
+    end)
+    nut_khong.MouseButton1Click:Connect(function() 
+        gui_xn:Destroy() 
+    end)
+end
+
+-- KET NOI SU KIEN NUT BAM
+nut_acc_chu.MouseButton1Click:Connect(function() 
+    if da_chay_acc_chu then return end 
+    tao_gui_xac_nhan("ACC CHU", function() 
+        da_chay_acc_chu = true 
+        chay_acc_chu() 
+    end) 
+end)
+
+nut_acc_clone.MouseButton1Click:Connect(function() 
+    if da_chay_acc_clone then return end 
+    tao_gui_xac_nhan("ACC CLONE", function() 
+        da_chay_acc_clone = true 
+        chay_acc_clone() 
+    end) 
+end)
+
+nut_dong.MouseButton1Click:Connect(function() 
+    gui:Destroy() 
+end)
+
+nut_thu_nho.MouseButton1Click:Connect(function() 
+    than_khung.Visible = not than_khung.Visible 
+    khung_chinh.Size = than_khung.Visible and UDim2.new(0, 200, 0, 100) or UDim2.new(0, 200, 0, 28) 
+end)
+
+-- TINH NANG KEO THA (DRAGGABLE)
+local dang_keo, du_lieu_keo, diem_bat_dau, vi_tri_bat_dau = false, nil, nil, nil
+
+khung_chinh.InputBegan:Connect(function(input) 
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then 
+        dang_keo = true 
+        diem_bat_dau = input.Position 
+        vi_tri_bat_dau = khung_chinh.Position 
+        input.Changed:Connect(function() 
+            if input.UserInputState == Enum.UserInputState.End then 
+                dang_keo = false 
+            end 
+        end) 
+    end 
+end)
+
+khung_chinh.InputChanged:Connect(function(input) 
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then 
+        du_lieu_keo = input 
+    end 
+end)
+
+game:GetService("UserInputService").InputChanged:Connect(function(input) 
+    if input == du_lieu_keo and dang_keo then 
+        local delta = input.Position - diem_bat_dau 
+        khung_chinh.Position = UDim2.new(vi_tri_bat_dau.X.Scale, vi_tri_bat_dau.X.Offset + delta.X, vi_tri_bat_dau.Y.Scale, vi_tri_bat_dau.Y.Offset + delta.Y) 
+    end 
+end)
