@@ -1,4 +1,4 @@
---code so 57: CLONE A - HIT + GRAB TREN 3 MAU - HIT + STOMP DUOI 3 MAU - UU TIEN NAILS (DELTAX MOBILE)
+--code so 57: CLONE A - HIT + GRAB TREN 3 MAU - HIT + STOMP DUOI 3 MAU - UU TIEN NAILS TRUOC (DELTAX MOBILE)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -75,29 +75,32 @@ end
 
 local function lay_tool_uu_tien()
     local c = nguoi_choi.Character
+    local bp = nguoi_choi:FindFirstChild("Backpack")
+    
     if c then
         for _, v in pairs(c:GetChildren()) do
-            if v:IsA("Tool") and string.find(string.lower(v.Name), "Nails") then
+            if v:IsA("Tool") and string.find(string.lower(v.Name), "nails") then
                 return v
             end
         end
+    end
+    if bp then
+        for _, v in pairs(bp:GetChildren()) do
+            if v:IsA("Tool") and string.find(string.lower(v.Name), "nails") then
+                return v
+            end
+        end
+    end
+    if c then
         for _, v in pairs(c:GetChildren()) do
             if v:IsA("Tool") and v.Name == "Fist" then
                 return v
             end
         end
     end
-    local bp = nguoi_choi:FindFirstChild("Backpack")
     if bp then
-        for _, v in pairs(bp:GetChildren()) do
-            if v:IsA("Tool") and string.find(string.lower(v.Name), "Nails") then
-                return v
-            end
-        end
         local fist = bp:FindFirstChild("Fist")
-        if fist then
-            return fist
-        end
+        if fist then return fist end
     end
     return nil
 end
