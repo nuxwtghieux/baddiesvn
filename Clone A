@@ -75,22 +75,24 @@ end
 
 local function lay_tool_uu_tien()
     local c = nguoi_choi.Character
-    if not c then return nil end
-    for _, v in pairs(c:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Nails" then
-            return v
+    if c then
+        for _, v in pairs(c:GetChildren()) do
+            if v:IsA("Tool") and string.find(string.lower(v.Name), "nails") then
+                return v
+            end
         end
-    end
-    for _, v in pairs(c:GetChildren()) do
-        if v:IsA("Tool") and v.Name == "Fist" then
-            return v
+        for _, v in pairs(c:GetChildren()) do
+            if v:IsA("Tool") and v.Name == "Fist" then
+                return v
+            end
         end
     end
     local bp = nguoi_choi:FindFirstChild("Backpack")
     if bp then
-        local nails = bp:FindFirstChild("Nails")
-        if nails then
-            return nails
+        for _, v in pairs(bp:GetChildren()) do
+            if v:IsA("Tool") and string.find(string.lower(v.Name), "nails") then
+                return v
+            end
         end
         local fist = bp:FindFirstChild("Fist")
         if fist then
